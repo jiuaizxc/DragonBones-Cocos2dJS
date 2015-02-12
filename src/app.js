@@ -65,6 +65,10 @@ var HelloWorldLayer = cc.Layer.extend({
             )
         );
         return true;
+    },
+    
+    test:function(A, B){
+    	cc.log(A + "aaaa" + B);
     }
 });
 
@@ -72,6 +76,7 @@ var HelloWorldScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
         var layer = new HelloWorldLayer();
+        layer.test(1);
         this.addChild(layer);
     }
 });

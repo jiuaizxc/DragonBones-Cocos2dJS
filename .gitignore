@@ -3,7 +3,7 @@ runtime/*
 res/*
 .cocos-project.json
 .project
-.settings/version.json
+.settings/*
 config.json
 index.html
 main.js
