@@ -64,11 +64,10 @@ var HelloWorldLayer = cc.Layer.extend({
                 cc.tintTo(2.5,255,125,0)
             )
         );
+        
+        dbutils.TransformUtil.formatRadian(1);
+        
         return true;
-    },
-    
-    test:function(A, B){
-    	cc.log(A + "aaaa" + B);
     }
 });
 
@@ -76,7 +75,6 @@ var HelloWorldScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
         var layer = new HelloWorldLayer();
-        layer.test(1);
         this.addChild(layer);
     }
 });
