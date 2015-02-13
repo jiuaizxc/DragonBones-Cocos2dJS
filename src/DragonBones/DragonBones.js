@@ -7,6 +7,157 @@ dragonBones.USE_FRAME_TWEEN_EASING = 30.0;
 dragonBones.ARMATURE = "armature";
 dragonBones.IMAGE = "image";
 
+/*----------------------------------------------------------------------event部分---------------------------------------------------------------*/
+dragonBones.Event = cc.Class.extend({
+	type:null,
+	target:null,
+	ctor:function(type){
+		this.type = type;
+	}
+});
+
+dragonBones.EventDispatcher = cc.Class.extend({
+	_listenersMap:null,
+	ctor:function(){},
+	
+	hasEventListener:function (type) {
+		if (this._listenersMap && this._listenersMap[type]) {
+			return true;
+		}
+		return false;
+	},
+
+	addEventListener:function (type, listener) {
+		if (type && listener) {
+			if (!this._listenersMap) {
+				this._listenersMap = {};
+			}
+			var listeners = this._listenersMap[type];
+			if (listeners) {
+				this.removeEventListener(type, listener);
+			}
+			if (listeners) {
+				listeners.push(listener);
+			} else {
+				this._listenersMap[type] = [listener];
+			}
+		}
+	},
+
+	removeEventListener:function (type, listener) {
+		if (!this._listenersMap || !type || !listener) {
+			return;
+		}
+		var listeners = this._listenersMap[type];
+		if (listeners) {
+			var length = listeners.length;
+			for (var i = 0; i < length; i++) {
+				if (listeners[i] == listener) {
+					if (length == 1) {
+						listeners.length = 0;
+						delete this._listenersMap[type];
+					} else {
+						listeners.splice(i, 1);
+					}
+				}
+			}
+		}
+	},
+
+	removeAllEventListeners:function (type) {
+		if (type) {
+			delete this._listenersMap[type];
+		} else {
+			this._listenersMap = null;
+		}
+	},
+
+	dispatchEvent:function (event) {
+		if (event) {
+			var listeners = this._listenersMap[event.type];
+			if (listeners) {
+				event.target = this;
+				var listenersCopy = listeners.concat();
+				var length = listeners.length;
+				for (var i = 0; i < length; i++) {
+					listenersCopy[i](event);
+				}
+			}
+		}
+	}
+});
+
+dragonBones.AnimationEvent = dragonBones.Event.extend({
+	/**
+	 * The animationState instance.
+	 */
+	animationState:null,
+	
+	ctor:function(type){
+		dragonBones.Event.prototype.ctor.call(this, type);
+	},
+	
+	getAnimationName:function(){
+		return this.animationState.name;
+	}
+});
+dragonBones.AnimationEvent.FADE_IN = "fadeIn";
+dragonBones.AnimationEvent.FADE_OUT = "fadeOut";
+dragonBones.AnimationEvent.START = "start";
+dragonBones.AnimationEvent.COMPLETE = "complete";
+dragonBones.AnimationEvent.LOOP_COMPLETE = "loopComplete";
+dragonBones.AnimationEvent.FADE_IN_COMPLETE = "fadeInComplete";
+dragonBones.AnimationEvent.FADE_OUT_COMPLETE = "fadeOutComplete";
+
+dragonBones.ArmatureEvent = dragonBones.Event.extend({
+	ctor:function(type){
+		dragonBones.Event.prototype.ctor.call(this, type);
+	}
+});
+dragonBones.ArmatureEvent.Z_ORDER_UPDATED = "zOrderUpdated";
+
+dragonBones.FrameEvent = dragonBones.Event.extend({
+	frameLabel:null,
+	bone:null,
+	animationState:null,
+	
+	ctor:function(type){
+		dragonBones.Event.prototype.ctor.call(this, type);
+	}
+});
+dragonBones.FrameEvent.ANIMATION_FRAME_EVENT = "animationFrameEvent";
+dragonBones.FrameEvent.BONE_FRAME_EVENT = "boneFrameEvent";
+
+dragonBones.SoundEvent = dragonBones.Event.extend({
+	armature:null,
+	animationState:null,
+	sound:null,
+	
+	ctor:function(type){
+		dragonBones.Event.prototype.ctor.call(this, type);
+	}
+});
+dragonBones.SoundEvent.SOUND = "sound";
+
+dragonBones.SoundEventManager = dragonBones.EventDispatcher.extend({
+	ctor:function(){
+		dragonBones.EventDispatcher.prototype.ctor.call(this);
+		if (dragonBones.SoundEventManager._instance) {
+			throw new Error("Singleton already constructed!");
+		}
+	}
+});
+
+dragonBones.SoundEventManager._instance = null;
+dragonBones.SoundEventManager.getInstance = function(){
+	if(dragonBones.SoundEventManager._instance == null){
+		dragonBones.SoundEventManager._instance = new dragonBones.SoundEventManager();
+	}
+	return dragonBones.SoundEventManager._instance;
+}
+/*----------------------------------------------------------------------event部分---------------------------------------------------------------*/
+
+
 /*----------------------------------------------------------------------geoms部分---------------------------------------------------------------*/
 dragonBones.ColorTransform = cc.Class.extend({
 	alphaMultiplier:1,
