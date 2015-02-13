@@ -65,8 +65,6 @@ var HelloWorldLayer = cc.Layer.extend({
             )
         );
         
-        dbutils.TransformUtil.formatRadian(1);
-        
         return true;
     }
 });
