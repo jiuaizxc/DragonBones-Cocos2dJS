@@ -172,8 +172,7 @@ dragonBones.Animation = cc.Class.extend({
 			}
 			return true;
 		}
-
-		return true;//存在一个问题2.4与3.0不一样
+		return true;
 	},
 
 	getAnimationList:function(){
@@ -278,7 +277,7 @@ dragonBones.Animation = cc.Class.extend({
 		if (duration < 0) {
 			durationScale = animationData.scale < 0 ? 1 : animationData.scale;
 		}else{
-			durationScale = duration * 1000 / animationData.duration;
+			durationScale = duration * 1000 / animationData.duration;//存在问题时间
 		}
 
 		if (durationScale == 0) {
@@ -320,27 +319,27 @@ dragonBones.Animation = cc.Class.extend({
 		case dragonBones.AnimationFadeOutMode.SAME_LAYER_AND_GROUP:
 		default:
 			i = this._animationStateList.length;
-			while(--i >= 0){
-				animationState = this._animationStateList[i];
-				if (animationState._layer == layer && animationState._group == group){
-					animationState.fadeOut(fadeInTime, pauseFadeOut);
-				}
+		while(--i >= 0){
+			animationState = this._animationStateList[i];
+			if (animationState._layer == layer && animationState._group == group){
+				animationState.fadeOut(fadeInTime, pauseFadeOut);
 			}
-			break;
 		}
-		
+		break;
+		}
+
 		this._lastAnimationState = dragonBones.AnimationState.borrowObject();
 		this._lastAnimationState._layer = layer;
 		this._lastAnimationState._group = group;
 		this._lastAnimationState.autoTween = autoTween;
 		this._lastAnimationState.fadeIn(this._armature, animationData, fadeInTime, 1.f / durationScale, playTimes, pauseFadeIn);
 		this.addState(this._lastAnimationState);
-		
+
 		var slot;
 		i = this._armature.getSlots().length;
 		while(--i >= 0){
 			slot = _armature.getSlots()[i];
-			
+
 			if (slot._childArmature && slot._childArmature._isInheritAnimation &&
 					slot._childArmature._animation.hasAnimation(animationName))
 			{
@@ -358,7 +357,7 @@ dragonBones.Animation = cc.Class.extend({
 		if (layer === undefined) { layer = 0; }
 		if (group === undefined) { group = null; }
 		if (fadeOutMode === undefined) { fadeOutMode = dragonBones.AnimationFadeOutMode.ALL; }
-		
+
 		var animationState = this.getState(animationName, layer);
 		if (!animationState){
 			animationState = this.gotoAndPlay(animationName, fadeInTime, duration, -1, layer, group, fadeOutMode);
@@ -369,7 +368,7 @@ dragonBones.Animation = cc.Class.extend({
 		}else{
 			animationState.setCurrentTime(time);
 		}
-		
+
 		animationState.stop();
 		return animationState;
 	},
@@ -385,19 +384,19 @@ dragonBones.Animation = cc.Class.extend({
 			this._isPlaying = true;
 		}
 	},
-	
+
 	stop:function(){
 		this._isPlaying = false;
 	},
-	
+
 	advanceTime:function(passedTime){
 		if (!this._isPlaying){
 			return;
 		}
-		
+
 		var isFading = false;
 		passedTime *= this._timeScale;
-		
+
 		var animationState;
 		var l = this._animationStateList.length;
 		for (var i = 0; i < l; ++i){
@@ -411,7 +410,6 @@ dragonBones.Animation = cc.Class.extend({
 				isFading = true;
 			}
 		}
-		
 		this._isFading = isFading;
 	},
 
@@ -424,10 +422,10 @@ dragonBones.Animation = cc.Class.extend({
 		}
 		return false;
 	},
-	
+
 	getState:function(name, layer){
 		if (layer === undefined) { layer = 0; }
-		
+
 		var animationState;
 		var i = this._animationStateList.length;
 		while(--i >= 0){
@@ -439,19 +437,21 @@ dragonBones.Animation = cc.Class.extend({
 		return null;
 	},
 
+	/** @protected */
 	addState:function(animationState){
 		if(this._animationStateList.indexOf(animationState) == -1){
 			this._animationStateList.push(animationState);
 		}
 	},
-	
+
+	/** @protected */
 	removeState:function(animationState){
 		var index = this._animationStateList.indexOf(animationState);
-		
+
 		if(index >= 0){
 			this._animationStateList.splice(index, 1);
 			dragonBones.AnimationState.returnObject(animationState);
-			
+
 			if (this._lastAnimationState == animationState)
 			{
 				if (this._animationStateList.length == 0){
@@ -462,15 +462,697 @@ dragonBones.Animation = cc.Class.extend({
 			}
 		}
 	},
-	
+
+	/** @protected */
 	updateAnimationStates:function(){
 		var i = this._animationStateList.length;
 		while(--i >= 0){
 			this._animationStateList[i].updateTimelineStates();
 		}
 	}
-
 });
+
+dragonBones.FadeState = {
+		FADE_BEFORE:0,
+		FADING:1,
+		FADE_COMPLETE:2
+};
+
+dragonBones.AnimationState = cc.Class.extend({
+	additiveBlending:false,
+	autoTween:false,
+	autoFadeOut:false,
+	displayControl:false,
+	lastFrameAutoTween:false,
+	fadeOutTime:0,
+	weight:0,
+	name:null,
+
+	_isPlaying:false,
+	_isComplete:false,
+	_isFadeOut:false,
+	_pausePlayheadInFade:false,
+	_currentPlayTimes:0,
+	_layer:0,
+	_playTimes:0,
+	_currentTime:0,
+	_currentFrameIndex:0,
+	_currentFramePosition:0,
+	_currentFrameDuration:0,
+	_totalTime:0,
+	_time:0,
+	_timeScale:0,
+	_fadeWeight:0,
+	_fadeTotalWeight:0,
+	_fadeCurrentTime:0,
+	_fadeTotalTime:0,
+	_fadeBeginTime:0,
+	_group:null,
+	_fadeState:0,
+
+	_timelineStateList:null,
+	_mixingTransforms:null,
+
+	_clip:null,
+	_armature:null,
+
+	ctor:function(){
+		this._timelineStateList = [];
+		this._mixingTransforms = [];
+	},
+
+	getIsComplete:function(){
+		return this._isComplete;
+	},
+
+	getIsPlaying:function(){
+		return (this._isPlaying && !this._isComplete);
+	},
+
+	getCurrentPlayTimes:function(){
+		return this._currentPlayTimes < 0 ? 0 : this._currentPlayTimes;
+	},
+
+	getLayer:function(){
+		return this._layer;
+	},
+
+	getTotalTime:function(){
+		return this._totalTime * 0.001;//存在问题
+	},
+
+	getCurrentWeight:function(){
+		return this._fadeWeight * this.weight;
+	},
+
+	getGroup:function(){
+		return this._group;
+	},
+
+	getClip:function(){
+		return this._clip;
+	},
+
+	setAdditiveBlending:function(value){
+		this.additiveBlending = value;
+		return this;
+	},
+
+	setAutoFadeOut:function(value, fadeOutTime_){
+		if(fadeOutTime_ === undefined){ fadeOutTime_ = -1; }
+		this.autoFadeOut = value;
+		if (fadeOutTime_ >= 0){
+			this.fadeOutTime = fadeOutTime_;
+		}
+		return this;
+	},
+
+	setWeight:function(value){
+		this.weight = value;
+		return this;
+	},
+
+	setFrameTween:function(autoTween_, lastFrameAutoTween_){
+		this.autoTween = autoTween_;
+		this.lastFrameAutoTween = lastFrameAutoTween_;
+		return this;
+	},
+
+	getPlayTimes:function(){
+		return this._playTimes;
+	},
+
+	setPlayTimes:function(playTimes){
+		this._playTimes = playTimes;
+
+		if (Math.round(this._totalTime * 0.001 * this._clip.frameRate) < 2){//存在问题
+			this._playTimes = playTimes < 0 ? -1 : 1;
+		}else{
+			this._playTimes = playTimes < 0 ? -playTimes : playTimes;
+		}
+		this.autoFadeOut = playTimes < 0 ? true : false;
+		return this;
+	},
+
+	getCurrentTime:function(){
+		return this._currentTime < 0 ? 0 : this._currentTime * 0.001;
+	},
+
+	setCurrentTime:function(currentTime){
+		if (currentTime < 0 || isNaN(currentTime)){//存在问题
+			currentTime = 0;
+		}
+
+		this._time = currentTime;
+		this._currentTime = this._time * 1000;//这里需要int型
+		return this;
+	},
+
+	getTimeScale:function(){
+		return this._timeScale;
+	},
+
+	setTimeScale:function(timeScale){
+		if (isNaN(timeScale) || timeScale == Infinity || timeScale === undefined){
+			timeScale = 1;
+		}
+		_timeScale = timeScale;
+		return this;
+	},
+
+	fadeOut:function(fadeTotalTime, pausePlayhead){
+		if (!(fadeTotalTime >= 0)){
+			fadeTotalTime = 0;
+		}
+		this._pausePlayheadInFade = pausePlayhead;
+
+		var i;
+		var len;
+		if (this._isFadeOut){
+			if (fadeTotalTime > this._fadeTotalTime / this._timeScale - (this._fadeCurrentTime - this._fadeBeginTime)){
+				//如果已经在淡出中，新的淡出需要更长的淡出时间，则忽略
+				return this;
+			}
+		}else{
+			len = this._timelineStateList.length;
+			i = 0;
+			while(i < len){
+				this._timelineStateList[i].fadeOut();
+				i ++;
+			}
+		}
+
+		// fade start
+		this._isFadeOut = true;
+		this._fadeTotalWeight = this._fadeWeight;
+		this._fadeState = dragonBones.FadeState.FADE_BEFORE;
+		this._fadeBeginTime = this._fadeCurrentTime;
+		this._fadeTotalTime = this._fadeTotalWeight >= 0 ? fadeTotalTime * this._timeScale : 0;
+		// default
+		this.displayControl = false;
+		return this;
+	},
+
+	play:function(){
+		this._isPlaying = true;
+		return this;
+	},
+
+	stop:function(){
+		this._isPlaying = false;
+		return this;
+	},
+
+	getMixingTransform:function(timelineName){
+		return this._mixingTransforms.indexOf(timelineName) >= 0;
+	},
+
+	addMixingTransform:function(timelineName, recursive){
+		if(recursive === undefined){ recursive = true; }
+
+		if (recursive){
+			var currentBone;
+			var bone;
+			var boneName;
+			var boneList = this._armature.getBones();
+			var i = boneList.length;
+			while(--i >= 0){
+				bone = boneList[i];
+				boneName = bone.name;
+				if(boneName == timelineName){
+					currentBone = bone;
+				}
+
+				if(currentBone && (currentBone == bone || currentBone.contains(bone))){
+					if(this._clip.getTimeline(boneName) && this._mixingTransforms.indexOf(boneName) < 0){
+						this._mixingTransforms.push(boneName);
+					}
+				}
+			}
+		}else if(this._clip.getTimeline(timelineName)){
+			if(this._mixingTransforms.indexOf(timelineName) < 0){
+				this._mixingTransforms.push(timelineName);
+			}
+		}
+
+		this.updateTimelineStates();
+		return this;
+	},
+
+	removeMixingTransform:function(timelineName, recursive){
+		if(recursive === undefined){ recursive = true; }
+
+		var index;
+		if (recursive){
+			var currentBone;
+			var bone;
+			var boneName;
+			var boneList = this._armature.getBones();
+			var i = boneList.length;
+			while(--i >= 0){
+				bone = boneList[i];
+				boneName = bone.name;
+				if(boneName == timelineName){
+					currentBone = bone;
+				}
+
+				if(currentBone && (currentBone == bone || currentBone.contains(bone))){
+					index = this._mixingTransforms.indexOf(boneName);
+					if(index >= 0){
+						this._mixingTransforms.splice(index, 1);
+					}
+				}
+			}
+		}else{
+			index = this._mixingTransforms.indexOf(boneName);
+			if(index >= 0){
+				this._mixingTransforms.splice(index, 1);
+			}
+		}
+
+		this.updateTimelineStates();
+		return this;
+	},
+
+	removeAllMixingTransform:function(){
+		this._mixingTransforms.length = 0;
+		this.updateTimelineStates();
+		return this;
+	},
+
+	/** @private */
+	fadeIn:function(armature, clip, fadeTotalTime, timeScale, playTimes, pausePlayhead){
+		this._armature = armature;
+		this._clip = clip;
+		this._pausePlayheadInFade = pausePlayhead;
+		this._totalTime = clip.duration;
+		this.autoTween = clip.autoTween;
+		this.name = clip.name;
+		this.setTimeScale(timeScale);
+		this.setPlayTimes(playTimes);
+		// reset
+		this._isComplete = false;
+		this._currentFrameIndex = -1;
+		this._currentPlayTimes = -1;
+
+		if (Math.round(this._totalTime * 0.001 * this._clip.frameRate) < 2 || timeScale == Infinity){//存在问题
+			this._currentTime = this._totalTime;
+		}else{
+			this._currentTime = -1;
+		}
+
+		this._time = 0;
+		this._mixingTransforms.length = 0;
+		// fade start
+		this._isFadeOut = false;
+		this._fadeWeight = 0;
+		this._fadeTotalWeight = 1;
+		this._fadeCurrentTime = 0;
+		this._fadeBeginTime = this._fadeCurrentTime;
+		this._fadeTotalTime = fadeTotalTime * this._timeScale;
+		this._fadeState = dragonBones.FadeState.FADE_BEFORE;
+		// default
+		this._isPlaying = true;
+		this.displayControl = true;
+		this.lastFrameAutoTween = true;
+		this.additiveBlending = false;
+		this.weight = 1;
+		this.fadeOutTime = fadeTotalTime;
+		this.updateTimelineStates();
+	},
+
+	/** @private */
+	advanceTime:function(passedTime){
+		passedTime *= this._timeScale;
+		this.advanceFadeTime(passedTime);
+		if(this._fadeWeight){
+			this.advanceTimelinesTime(passedTime);
+		}
+		return this._isFadeOut && this._fadeState == 2;//dragonBones.FadeState.FADE_COMPLETE
+	},
+
+	/** @private */
+	updateTimelineStates:function(){
+		var timelineState;
+		var i = this._timelineStateList.length;
+		var len;
+		while(--i >= 0){
+			timelineState = this._timelineStateList[i];
+			if(!this._armature.getBone(timelineState.name)){
+				this.removeTimelineState(timelineState);
+			}
+		}
+
+		if (this._mixingTransforms.length == 0){
+			len = this._clip.timelineList.length;
+			i = 0;
+			while(i < len){
+				this.addTimelineState(this._clip.timelineList[i].name);
+				i ++;
+			}
+		}else{
+			i = this._timelineStateList.length;
+			while(--i >= 0){
+				timelineState = this._timelineStateList[i];
+				if(this._mixingTransforms.indexOf(timelineState.name) < 0){
+					this.removeTimelineState(timelineState);
+				}
+			}
+
+			len = this._mixingTransforms.length;
+			i = 0;
+			while(i < len){
+				this.addTimelineState(this._mixingTransforms[i]);
+				i ++;
+			}
+		}
+	},
+
+	/** @private */
+	addTimelineState:function(timelineName){
+		var bone = this._armature.getBone(timelineName);
+		if (bone){
+			var len = this._timelineStateList.length;
+			var i = 0;
+			while(i < len){
+				if (this._timelineStateList[i].name == timelineName){
+					return;
+				}
+				i ++;
+			}
+
+			var timelineState = dragonBones.TimelineState.borrowObject();
+			timelineState.fadeIn(bone, this, this._clip.getTimeline(timelineName));
+			this._timelineStateList.push(timelineState);
+		}
+	},
+
+	/** @private */
+	removeTimelineState:function(timelineState){
+		var index = this._timelineStateList.indexOf(timelineState);
+		if(index >= 0){
+			this._timelineStateList.splice(index, 1);
+			dragonBones.TimelineState.returnObject(timelineState);
+		}
+	},
+
+	/** @private */
+	advanceFadeTime:function(passedTime){
+		var fadeStartFlg = false;
+		var fadeCompleteFlg = false;
+
+		if (this._fadeBeginTime >= 0){
+			var fadeState = this._fadeState;
+			this._fadeCurrentTime += passedTime < 0 ? -passedTime : passedTime;
+
+			if (this._fadeCurrentTime >= this._fadeBeginTime + this._fadeTotalTime){
+				// fade complete
+				if (this._fadeWeight == 1 || this._fadeWeight == 0)
+				{
+					fadeState = 2;//dragonBones.FadeState.FADE_COMPLETE;
+					if (this._pausePlayheadInFade){
+						this._pausePlayheadInFade = false;
+						this._currentTime = -1;
+					}
+				}
+				this._fadeWeight = this._isFadeOut ? 0 : 1;
+			}else if (this._fadeCurrentTime >= this._fadeBeginTime){
+				// fading
+				fadeState = 1;//dragonBones.FadeState.FADING;
+				this._fadeWeight = (this._fadeCurrentTime - this._fadeBeginTime) / this._fadeTotalTime * this._fadeTotalWeight;
+
+				if (this._isFadeOut){
+					this._fadeWeight = this._fadeTotalWeight - this._fadeWeight;
+				}
+			}else{
+				// fade before
+				fadeState = 0;//dragonBones.FadeState.FADE_BEFORE;
+				this._fadeWeight = this._isFadeOut ? 1 : 0;
+			}
+
+			if(this._fadeState != fadeState){
+				// _fadeState == FadeState::FADE_BEFORE && (fadeState == FadeState::FADING || fadeState == FadeState::FADE_COMPLETE)
+				if (this._fadeState == 0){//dragonBones.FadeState.FADE_BEFORE
+					fadeStartFlg = true;
+				}
+
+				// (_fadeState == FadeState::FADE_BEFORE || _fadeState == FadeState::FADING) && fadeState == FadeState::FADE_COMPLETE
+				if (fadeState == 2){//dragonBones.FadeState.FADE_COMPLETE
+					fadeCompleteFlg = true;
+				}
+				this._fadeState = fadeState;
+			}
+		}
+
+		var eventDataType;
+		var eventData;
+
+		if (fadeStartFlg)
+		{
+			if (this._isFadeOut){
+				eventDataType = dragonBones.EventType.FADE_OUT;
+			}else{
+				this.hideBones();
+				eventDataType = dragonBones.EventType.FADE_IN;
+			}
+
+			if(this._armature._eventDispatcher.hasEvent(eventDataType)){
+				eventData = dragonBones.EventData.borrowObject(eventDataType);
+				eventData.armature = this._armature;
+				eventData.animationState = this;
+				this._armature._eventDataList.push(eventData);
+			}
+		}
+
+		if (fadeCompleteFlg)
+		{
+			if (this._isFadeOut){
+				eventDataType = dragonBones.EventType.FADE_OUT_COMPLETE;
+			}else{
+				eventDataType = dragonBones.EventType.FADE_IN_COMPLETE;
+			}
+
+			if (this._armature._eventDispatcher.hasEvent(eventDataType)){
+				eventData = dragonBones.EventData.borrowObject(eventDataType);
+				eventData.armature = this._armature;
+				eventData.animationState = this;
+				this._armature._eventDataList.push(eventData);
+			}
+		}
+	},
+
+	/** @private */
+	advanceTimelinesTime:function(passedTime){
+		if(this._isPlaying && !this._pausePlayheadInFade){
+			this._time += passedTime;
+		}
+
+		var startFlg = false;
+		var completeFlg = false;
+		var loopCompleteFlg = false;
+		var isThisComplete = false;
+		var currentPlayTimes = 0;
+		var currentTime = this._time * 1000;//这里需要int型
+
+		if(_playTimes == 0){
+			isThisComplete = false;
+			currentPlayTimes = Math.ceil(Math.abs(currentTime) / this._totalTime);//这里需要int型
+			currentTime -= Math.floor(currentTime / this._totalTime) * this._totalTime;//这里需要int型
+			//currentPlayTimes = (int)(ceil(abs(currentTime) / (float)(_totalTime)));
+			//currentTime -= (int)(floor(currentTime / (float)(_totalTime))) * _totalTime;
+
+			if (currentTime < 0){
+				currentTime += this._totalTime;
+			}
+		}else{
+			var totalTimes = this._playTimes * this._totalTime;
+
+			if (currentTime >= totalTimes){
+				currentTime = totalTimes;
+				isThisComplete = true;
+			}else if (currentTime <= -totalTimes){
+				currentTime = -totalTimes;
+				isThisComplete = true;
+			}else{
+				isThisComplete = false;
+			}
+
+			if (currentTime < 0)
+			{
+				currentTime += totalTimes;
+			}
+
+			currentPlayTimes = Math.ceil(currentTime / this._totalTime);//这里需要int型
+			currentTime -= Math.floor(currentTime / this._totalTime) * this._totalTime;//这里需要int型
+			//currentPlayTimes = (int)(ceil(currentTime / (float)(_totalTime)));
+			//currentTime -= (int)(floor(currentTime / (float)(_totalTime))) * _totalTime;
+
+			if (isThisComplete){
+				currentTime = this._totalTime;
+			}
+		}
+
+		if (currentPlayTimes == 0){
+			currentPlayTimes = 1;
+		}
+
+		this._isComplete = isThisComplete;
+		var progress = this._time * 1000 / this._totalTime;//存在问题
+
+		var l = this._timelineStateList.length;
+		var i = 0;
+		var timeline;
+		while(i < l){
+			timeline = this._timelineStateList[i];
+			timeline.update(progress);
+			this._isComplete = timeline._isComplete && this._isComplete;
+			i ++;
+		}
+
+		// update main timeline
+		if(this._currentTime != currentTime){
+			if(this._currentPlayTimes != currentPlayTimes){// check loop complete
+				if(this._currentPlayTimes > 0 && currentPlayTimes > 1){
+					loopCompleteFlg = true;
+				}
+				this._currentPlayTimes = currentPlayTimes;
+			}
+
+			if(_currentTime < 0 && !_pausePlayheadInFade){// check start
+				startFlg = true;
+			}
+
+			if (this._isComplete){// check complete
+				completeFlg = true;
+			}
+			this._currentTime = currentTime;
+			this.updateMainTimeline(isThisComplete);
+		}
+
+		var eventData;
+		if(startFlg){
+			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.START)){
+				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.START);
+				eventData.armature = this._armature;
+				eventData.animationState = this;
+				this._armature._eventDataList.push(eventData);
+			}
+		}
+
+		if(completeFlg){
+			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.COMPLETE)){
+				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.COMPLETE);
+				eventData.armature = _armature;
+				eventData.animationState = this;
+				this._armature._eventDataList.push(eventData);
+			}
+
+			if (this.autoFadeOut){
+				fadeOut(this.fadeOutTime, true);
+			}
+		}else if (loopCompleteFlg){
+			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.LOOP_COMPLETE)){
+				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.LOOP_COMPLETE);
+				eventData.armature = _armature;
+				eventData.animationState = this;
+				this._armature._eventDataList.push(eventData);
+			}
+		}
+	},
+
+	/** @private */
+	updateMainTimeline:function(isThisComplete){//自己修改过代码
+		var frameList = this._clip.frameList;
+		var l = frameList.length;
+		if (l > 0){
+			var prevFrame;
+			var currentFrame;
+
+			for (var i = 0; i < l; ++i){
+				if(this._currentFrameIndex < 0){
+					this._currentFrameIndex = 0;
+				}else if(this._currentTime < this._currentFramePosition || this._currentTime >= this._currentFramePosition + this._currentFrameDuration){
+					++this._currentFrameIndex;
+
+					if(this._currentFrameIndex >= l){
+						if (isThisComplete){
+							--this._currentFrameIndex;
+							break;
+						}else{
+							this._currentFrameIndex = 0;
+						}
+					}
+				}else{
+					break;
+				}
+
+				currentFrame = frameList[this._currentFrameIndex];
+
+				if(prevFrame){
+					this._armature.arriveAtFrame(prevFrame, this, true);
+				}
+
+				this._currentFrameDuration = currentFrame.duration;
+				this._currentFramePosition = currentFrame.position;
+				prevFrame = currentFrame;
+			}
+
+			if(currentFrame){
+				this._armature.arriveAtFrame(currentFrame, this, false);
+			}
+		}
+	},
+
+	/** @private */
+	hideBones:function(){
+		var bone;
+		for(var i = 0, l = this._clip.hideTimelineList.length; i < l; i++){
+			bone = this._armature.getBone(this._clip.hideTimelineList[i]);
+			if (bone){
+				bone.hideSlots();
+			}
+		}
+	},
+
+	/** @private */
+	clear:function(){
+		var i = this._timelineStateList.length;
+		while(--i >= 0){
+			dragonBones.TimelineState.returnObject(this._timelineStateList[i]);
+		}
+		this._timelineStateList.length = 0;
+		this._mixingTransforms.length = 0;
+
+		this._armature = null;
+		this._clip = null;
+	}
+});
+
+dragonBones.AnimationState._pool = [];
+var dbAnimationStatePool = dragonBones.AnimationState._pool;
+
+dragonBones.AnimationState.borrowObject = function(){
+	if (dbAnimationStatePool.length == 0){
+		return new AnimationState();
+	}
+	return dbAnimationStatePool.pop();
+};
+
+dragonBones.AnimationState.returnObject = function(animationState){
+	var index = dbAnimationStatePool.indexOf(animationState);
+	if(index < 0){
+		dbAnimationStatePool.push(animationState);
+	}
+	animationState.clear();
+};
+
+dragonBones.AnimationState.clearObjects = function(){
+	var i = dbAnimationStatePool.length;
+	while (--i >= 0) {
+		dbAnimationStatePool[i].clear();
+	}
+	dbAnimationStatePool.length = 0;
+};
 
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
 
