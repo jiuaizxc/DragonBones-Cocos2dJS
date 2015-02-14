@@ -2,8 +2,10 @@ var dragonBones = dragonBones || {};
 
 dragonBones.FT_FRAME = 0;
 dragonBones.FT_TRANSFORM_FRAME = 1;
-dragonBones.NO_TWEEN_EASING = 20.0;
-dragonBones.USE_FRAME_TWEEN_EASING = 30.0;
+
+dragonBones.AUTO_TWEEN_EASING = 10;
+dragonBones.NO_TWEEN_EASING = 20;
+dragonBones.USE_FRAME_TWEEN_EASING = 30;
 
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
 dragonBones.WorldClock = cc.Class.extend({
@@ -1128,12 +1130,11 @@ dragonBones.AnimationState = cc.Class.extend({
 	}
 });
 
-dragonBones.AnimationState._pool = [];
-var dbAnimationStatePool = dragonBones.AnimationState._pool;
-
+var dbAnimationStatePool = [];
+dragonBones.AnimationState._pool = dbAnimationStatePool;
 dragonBones.AnimationState.borrowObject = function(){
 	if (dbAnimationStatePool.length == 0){
-		return new AnimationState();
+		return new dragonBones.AnimationState();
 	}
 	return dbAnimationStatePool.pop();
 };
@@ -1152,6 +1153,603 @@ dragonBones.AnimationState.clearObjects = function(){
 		dbAnimationStatePool[i].clear();
 	}
 	dbAnimationStatePool.length = 0;
+};
+
+dragonBones.UpdateState = {
+		UPDATE:0,
+		UPDATE_ONCE:1,
+		UNUPDATE:2
+};
+
+dragonBones.TimelineState = cc.Class.extend({
+	name:null,
+
+	_blendEnabled:false,
+	_isComplete:false,
+	_tweenTransform:false,
+	_tweenScale:false,
+	_tweenColor:false,
+	_currentTime:0,
+	_currentFrameIndex:0,
+	_currentFramePosition:0,
+	_currentFrameDuration:0,
+	_totalTime:0,
+	_weight:0,
+	_tweenEasing:0,
+
+	_updateState:0,
+	_transform:null,
+	_durationTransform:null,
+	_originTransform:null,
+	_pivot:null,
+	_durationPivot:null,
+	_originPivot:null,
+	_durationColor:null,
+
+	_bone:null,
+	_animationState:null,
+	_timeline:null,
+
+	ctor:function(){
+		this._transform = new dragonBones.Transform();
+		this._durationTransform = new dragonBones.Transform();
+		this._pivot = new dragonBones.Point();
+		this._durationPivot = new dragonBones.Point();
+		this._durationColor = new dragonBones.ColorTransform();
+	},
+
+	/** @private */
+	fadeIn:function(bone, animationState, timeline){
+		this._bone = bone;
+		this._animationState = animationState;
+		this._timeline = timeline;
+		this._isComplete = false;
+		this._blendEnabled = false;
+		this._tweenTransform = false;
+		this._tweenScale = false;
+		this._tweenColor = false;
+		this._currentTime = -1;
+		this._currentFrameIndex = -1;
+		this._weight = 1;
+		this._tweenEasing = dragonBones.USE_FRAME_TWEEN_EASING;
+		this._totalTime = this._timeline.duration;
+		this.name = this._timeline.name;
+		this._transform.x = 0;
+		this._transform.y = 0;
+		this._transform.scaleX = 0;
+		this._transform.scaleY = 0;
+		this._transform.skewX = 0;
+		this._transform.skewY = 0;
+		this._pivot.x = 0;
+		this._pivot.y = 0;
+		this._durationTransform.x = 0;
+		this._durationTransform.y = 0;
+		this._durationTransform.scaleX = 0;
+		this._durationTransform.scaleY = 0;
+		this._durationTransform.skewX = 0;
+		this._durationTransform.skewY = 0;
+		this._durationPivot.x = 0;
+		this._durationPivot.y = 0
+
+		// copy
+		this._originTransform = this._timeline.originTransform;
+		// copy
+		this._originPivot = this._timeline.originPivot;
+
+		switch (this._timeline.frameList.length)
+		{
+		case 0:
+			this._updateState = 2;//dragonBones.UpdateState.UNUPDATE;
+			break;
+		case 1:
+			this._updateState = 1;//dragonBones.UpdateState.UPDATE_ONCE;
+			break;
+		default:
+			this._updateState = 0;//dragonBones.UpdateState.UPDATE;
+		break;
+		}
+		this._bone.addState(this);
+	},
+
+	/** @private */
+	fadeOut:function(){
+		this._transform.skewX = dbutils.TransformUtil.formatRadian(this._transform.skewX);
+		this._transform.skewY = dbutils.TransformUtil.formatRadian(this._transform.skewY);
+	},
+
+	/** @private */
+	update:function(progress){
+		if (this._updateState == 0){//UpdateState.UPDATE
+			this.updateMultipleFrame(progress);
+		}else if (this._updateState == 1){//UpdateState.UPDATE_ONCE
+			this.updateSingleFrame();
+			this._updateState = 2;//UpdateState.UNUPDATE;
+		}
+	},
+
+	/** @private */
+	updateMultipleFrame:function(progress){
+		progress /= this._timeline.scale;
+		progress += this._timeline.offset;
+		var currentTime = this._totalTime * progress;//这里需要int型
+		var currentPlayTimes = 0;
+		var playTimes = this._animationState.getPlayTimes();
+		
+		if (playTimes == 0){
+			this._isComplete = false;
+			currentPlayTimes = Math.ceil(Math.abs(currentTime) / this._totalTime) || 1;//这里需要int型
+			
+			//比对egretDragonBones修改
+			if(currentTime >= 0){
+				currentTime -= Math.floor(currentTime / this._totalTime) * this._totalTime;//这里需要int型
+			}else{
+				currentTime -= Math.ceil(currentTime / this._totalTime) * this._totalTime;//这里需要int型
+			}
+			if (currentTime < 0){
+				currentTime += this._totalTime;
+			}
+		}else{
+			var totalTimes = playTimes * this._totalTime;
+			if (currentTime >= totalTimes){
+				currentTime = totalTimes;
+				this._isComplete = true;
+			}else if (currentTime <= -totalTimes){
+				currentTime = -totalTimes;
+				this._isComplete = true;
+			}else{
+				this._isComplete = false;
+			}
+
+			if (currentTime < 0){
+				currentTime += totalTimes;
+			}
+
+			currentPlayTimes = Math.ceil(currentTime / this._totalTime) || 1;
+			if (this._isComplete){
+				currentTime = this._totalTime;
+			}else{
+				//比对egretDragonBones修改
+				if(currentTime>=0){
+					currentTime -= Math.floor(currentTime / this._totalTime) * this._totalTime;
+				}else{
+					currentTime -= Math.ceil(currentTime / this._totalTime) * this._totalTime;
+				}
+			}
+		}
+		
+		if (this._currentTime != currentTime){
+			this._currentTime = currentTime;
+			var prevFrame;
+			var currentFrame;
+			var frameList = this._timeline.frameList;
+			var l = frameList.length;
+			var i;
+			for (i = 0; i < l; ++i){
+				if (this._currentFrameIndex < 0){
+					this._currentFrameIndex = 0;
+				}else if (this._currentTime < this._currentFramePosition || this._currentTime >= this._currentFramePosition + this._currentFrameDuration){
+					++this._currentFrameIndex;
+
+					if(this._currentFrameIndex >= l){
+						if (this._isComplete){
+							--this._currentFrameIndex;
+							break;
+						}else{
+							this._currentFrameIndex = 0;
+						}
+					}
+				}else{
+					break;
+				}
+				
+				currentFrame = frameList[this._currentFrameIndex];
+
+				if (prevFrame){
+					this._bone.arriveAtFrame(prevFrame, this, this._animationState, true);
+				}
+
+				this._currentFrameDuration = currentFrame.duration;
+				this._currentFramePosition = currentFrame.position;
+				prevFrame = currentFrame;
+			}
+			
+			if (currentFrame){
+				this._bone.arriveAtFrame(currentFrame, this, this._animationState, false);
+				this._blendEnabled = currentFrame.displayIndex >= 0;
+
+				if (this._blendEnabled){
+					this.updateToNextFrame(currentPlayTimes);
+				}else{
+					this._tweenEasing = dragonBones.NO_TWEEN_EASING;
+					this._tweenTransform = false;
+					this._tweenScale = false;
+					this._tweenColor = false;
+				}
+			}
+
+			if(this._blendEnabled){
+				this.updateTween();
+			}
+		}
+	},
+
+	/** @private */
+	updateToNextFrame:function(currentPlayTimes){
+		var tweenEnabled = false;
+		var nextFrameIndex = this._currentFrameIndex + 1;
+		if (nextFrameIndex >= this._timeline.frameList.length){
+			nextFrameIndex = 0;
+		}
+
+		var currentFrame = this._timeline.frameList[this._currentFrameIndex];
+		var nextFrame = this._timeline.frameList[nextFrameIndex];
+		
+		if(nextFrameIndex == 0 &&
+				(
+						!this._animationState.lastFrameAutoTween ||
+						(
+								this._animationState.getPlayTimes() &&
+								this._animationState.getCurrentPlayTimes() >= this._animationState.getPlayTimes() &&
+								((this._currentFramePosition + this._currentFrameDuration) / this._totalTime + currentPlayTimes - this._timeline.offset) * this._timeline.scale > 0.999999
+						)
+				)
+		){
+			this._tweenEasing = dragonBones.NO_TWEEN_EASING;
+			tweenEnabled = false;
+		}else if (currentFrame.displayIndex < 0 || nextFrame.displayIndex < 0){
+			this._tweenEasing = dragonBones.NO_TWEEN_EASING;
+			tweenEnabled = false;
+		}else if (this._animationState.autoTween){
+			this._tweenEasing = this._animationState.getClip().tweenEasing;
+
+			if(this._tweenEasing == dragonBones.USE_FRAME_TWEEN_EASING){
+				this._tweenEasing = currentFrame.tweenEasing;
+
+				if(this._tweenEasing == dragonBones.NO_TWEEN_EASING){// frame no tween
+					tweenEnabled = false;
+				}else{
+					if (this._tweenEasing == dragonBones.AUTO_TWEEN_EASING){
+						this._tweenEasing = 0;
+					}
+					// _tweenEasing [-1, 0) 0 (0, 1] (1, 2]
+					tweenEnabled = true;
+				}
+			}else{ // animationData overwrite tween
+				// _tweenEasing [-1, 0) 0 (0, 1] (1, 2]
+				tweenEnabled = true;
+			}
+		}else{
+			this._tweenEasing = currentFrame.tweenEasing;
+
+			if (this._tweenEasing == dragonBones.NO_TWEEN_EASING || this._tweenEasing == dragonBones.AUTO_TWEEN_EASING){// frame no tween
+				this._tweenEasing = dragonBones.NO_TWEEN_EASING;
+				tweenEnabled = false;
+			}else{
+				// _tweenEasing [-1, 0) 0 (0, 1] (1, 2]
+				tweenEnabled = true;
+			}
+		}
+		
+		
+		if (tweenEnabled){
+			// transform
+			this._durationTransform.x = nextFrame.transform.x - currentFrame.transform.x;
+			this._durationTransform.y = nextFrame.transform.y - currentFrame.transform.y;
+			this._durationTransform.skewX = nextFrame.transform.skewX - currentFrame.transform.skewX;
+			this._durationTransform.skewY = nextFrame.transform.skewY - currentFrame.transform.skewY;
+			this._durationTransform.scaleX = nextFrame.transform.scaleX - currentFrame.transform.scaleX + nextFrame.scaleOffset.x;
+			this._durationTransform.scaleY = nextFrame.transform.scaleY - currentFrame.transform.scaleY + nextFrame.scaleOffset.y;
+			
+			if (nextFrameIndex == 0){
+				this._durationTransform.skewX = dbutils.TransformUtil.formatRadian(this._durationTransform.skewX);
+				this._durationTransform.skewY = dbutils.TransformUtil.formatRadian(this._durationTransform.skewY);
+			}
+
+			this._durationPivot.x = nextFrame.pivot.x - currentFrame.pivot.x;
+			this._durationPivot.y = nextFrame.pivot.y - currentFrame.pivot.y;
+			
+			if (
+					this._durationTransform.x ||
+					this._durationTransform.y ||
+					this._durationTransform.skewX ||
+					this._durationTransform.skewY ||
+					this._durationTransform.scaleX ||
+					this._durationTransform.scaleY ||
+					this._durationPivot.x ||
+					this._durationPivot.y
+			){
+				this._tweenTransform = true;
+				this._tweenScale = currentFrame.tweenScale;
+			}else{
+				this._tweenTransform = false;
+				this._tweenScale = false;
+			}
+			
+			// color
+			if (currentFrame.color && nextFrame.color)
+			{
+				this._durationColor.alphaOffset = nextFrame.color.alphaOffset - currentFrame.color.alphaOffset;
+				this._durationColor.redOffset = nextFrame.color.redOffset - currentFrame.color.redOffset;
+				this._durationColor.greenOffset = nextFrame.color.greenOffset - currentFrame.color.greenOffset;
+				this._durationColor.blueOffset = nextFrame.color.blueOffset - currentFrame.color.blueOffset;
+				this._durationColor.alphaMultiplier = nextFrame.color.alphaMultiplier - currentFrame.color.alphaMultiplier;
+				this._durationColor.redMultiplier = nextFrame.color.redMultiplier - currentFrame.color.redMultiplier;
+				this._durationColor.greenMultiplier = nextFrame.color.greenMultiplier - currentFrame.color.greenMultiplier;
+				this._durationColor.blueMultiplier = nextFrame.color.blueMultiplier - currentFrame.color.blueMultiplier;
+
+				if(
+						this._durationColor.alphaOffset ||
+						this._durationColor.redOffset ||
+						this._durationColor.greenOffset ||
+						this._durationColor.blueOffset ||
+						this._durationColor.alphaMultiplier ||
+						this._durationColor.redMultiplier ||
+						this._durationColor.greenMultiplier ||
+						this._durationColor.blueMultiplier
+				)
+				{
+					this._tweenColor = true;
+				}
+				else
+				{
+					this._tweenColor = false;
+				}
+			}else if (currentFrame.color){
+				this._tweenColor = true;
+				this._durationColor.alphaOffset = -currentFrame.color.alphaOffset;
+				this._durationColor.redOffset = -currentFrame.color.redOffset;
+				this._durationColor.greenOffset = -currentFrame.color.greenOffset;
+				this._durationColor.blueOffset = -currentFrame.color.blueOffset;
+				this._durationColor.alphaMultiplier = 1 - currentFrame.color.alphaMultiplier;
+				this._durationColor.redMultiplier = 1 - currentFrame.color.redMultiplier;
+				this._durationColor.greenMultiplier = 1 - currentFrame.color.greenMultiplier;
+				this._durationColor.blueMultiplier = 1 - currentFrame.color.blueMultiplier;
+			}else if (nextFrame.color){
+				this._tweenColor = true;
+				this._durationColor.alphaOffset = nextFrame.color.alphaOffset;
+				this._durationColor.redOffset = nextFrame.color.redOffset;
+				this._durationColor.greenOffset = nextFrame.color.greenOffset;
+				this._durationColor.blueOffset = nextFrame.color.blueOffset;
+				this._durationColor.alphaMultiplier = nextFrame.color.alphaMultiplier - 1;
+				this._durationColor.redMultiplier = nextFrame.color.redMultiplier - 1;
+				this._durationColor.greenMultiplier = nextFrame.color.greenMultiplier - 1;
+				this._durationColor.blueMultiplier = nextFrame.color.blueMultiplier - 1;
+			}else{
+				this._tweenColor = false;
+			}
+		}else{
+			this._tweenTransform = false;
+			this._tweenScale = false;
+			this._tweenColor = false;
+		}
+		
+		if (!this._tweenTransform)
+		{
+			if (this._animationState.additiveBlending)
+			{
+				this._transform.x = currentFrame.transform.x;
+				this._transform.y = currentFrame.transform.y;
+				this._transform.skewX = currentFrame.transform.skewX;
+				this._transform.skewY = currentFrame.transform.skewY;
+				this._transform.scaleX = currentFrame.transform.scaleX;
+				this._transform.scaleY = currentFrame.transform.scaleY;
+				this._pivot.x = currentFrame.pivot.x;
+				this._pivot.y = currentFrame.pivot.y;
+			}else{
+				this._transform.x = this._originTransform.x + currentFrame.transform.x;
+				this._transform.y = this._originTransform.y + currentFrame.transform.y;
+				this._transform.skewX = this._originTransform.skewX + currentFrame.transform.skewX;
+				this._transform.skewY = this._originTransform.skewY + currentFrame.transform.skewY;
+				this._transform.scaleX = this._originTransform.scaleX + currentFrame.transform.scaleX;
+				this._transform.scaleY = this._originTransform.scaleY + currentFrame.transform.scaleY;
+				this._pivot.x = this._originPivot.x + currentFrame.pivot.x;
+				this._pivot.y = this._originPivot.y + currentFrame.pivot.y;
+			}
+
+			this._bone.invalidUpdate();
+		}else if (!this._tweenScale){
+			if (this._animationState.additiveBlending)
+			{
+				this._transform.scaleX = currentFrame.transform.scaleX;
+				this._transform.scaleY = currentFrame.transform.scaleY;
+			}else{
+				this._transform.scaleX = this._originTransform.scaleX + currentFrame.transform.scaleX;
+				this._transform.scaleY = this._originTransform.scaleY + currentFrame.transform.scaleY;
+			}
+		}
+		
+		if (!this._tweenColor && this._animationState.displayControl){
+			if (currentFrame.color){
+				this._bone.updateColor(
+						currentFrame.color.alphaOffset,
+						currentFrame.color.redOffset,
+						currentFrame.color.greenOffset,
+						currentFrame.color.blueOffset,
+						currentFrame.color.alphaMultiplier,
+						currentFrame.color.redMultiplier,
+						currentFrame.color.greenMultiplier,
+						currentFrame.color.blueMultiplier,
+						true
+				);
+			}else if (this._bone._isColorChanged){
+				this._bone.updateColor(0, 0, 0, 0, 1, 1, 1, 1, false);
+			}
+		}
+	},
+
+	/** @private */
+	updateTween:function(){
+		var progress = (this._currentTime - this._currentFramePosition) / this._currentFrameDuration;
+		if(this._tweenEasing && this._tweenEasing != dragonBones.NO_TWEEN_EASING){
+			progress = dbutils.TransformUtil.getEaseValue(progress, this._tweenEasing);
+		}
+		
+		var currentFrame = this._timeline.frameList[this._currentFrameIndex];
+		
+		if (this._tweenTransform)
+		{
+			var currentTransform = currentFrame.transform;
+			var currentPivot = currentFrame.pivot;
+			if (this._animationState.additiveBlending){
+				//additive blending
+				this._transform.x = currentTransform.x + this._durationTransform.x * progress;
+				this._transform.y = currentTransform.y + this._durationTransform.y * progress;
+				this._transform.skewX = currentTransform.skewX + this._durationTransform.skewX * progress;
+				this._transform.skewY = currentTransform.skewY + this._durationTransform.skewY * progress;
+
+				if (this._tweenScale){
+					this._transform.scaleX = currentTransform.scaleX + this._durationTransform.scaleX * progress;
+					this._transform.scaleY = currentTransform.scaleY + this._durationTransform.scaleY * progress;
+				}
+
+				this._pivot.x = currentPivot.x + this._durationPivot.x * progress;
+				this._pivot.y = currentPivot.y + this._durationPivot.y * progress;
+			}else{
+				// normal blending
+				this._transform.x = this._originTransform.x + currentTransform.x + this._durationTransform.x * progress;
+				this._transform.y = this._originTransform.y + currentTransform.y + this._durationTransform.y * progress;
+				this._transform.skewX = this._originTransform.skewX + currentTransform.skewX + this._durationTransform.skewX * progress;
+				this._transform.skewY = this._originTransform.skewY + currentTransform.skewY + this._durationTransform.skewY * progress;
+
+				if (this._tweenScale)
+				{
+					this._transform.scaleX = this._originTransform.scaleX + currentTransform.scaleX + this._durationTransform.scaleX * progress;
+					this._transform.scaleY = this._originTransform.scaleY + currentTransform.scaleY + this._durationTransform.scaleY * progress;
+				}
+
+				this._pivot.x = this._originPivot.x + currentPivot.x + this._durationPivot.x * progress;
+				this._pivot.y = this._originPivot.y + currentPivot.y + this._durationPivot.y * progress;
+			}
+			this._bone.invalidUpdate();
+		}
+		
+		if (this._tweenColor && this._animationState.displayControl)
+		{
+			if (currentFrame.color)
+			{
+				this._bone.updateColor(
+						currentFrame.color.alphaOffset + this._durationColor.alphaOffset * progress,
+						currentFrame.color.redOffset + this._durationColor.redOffset * progress,
+						currentFrame.color.greenOffset + this._durationColor.greenOffset * progress,
+						currentFrame.color.blueOffset + this._durationColor.blueOffset * progress,
+						currentFrame.color.alphaMultiplier + this._durationColor.alphaMultiplier * progress,
+						currentFrame.color.redMultiplier + this._durationColor.redMultiplier * progress,
+						currentFrame.color.greenMultiplier + this._durationColor.greenMultiplier * progress,
+						currentFrame.color.blueMultiplier + this._durationColor.blueMultiplier * progress,
+						true
+				);
+			}
+			else
+			{
+				this._bone.updateColor(
+						this._durationColor.alphaOffset * progress,
+						this._durationColor.redOffset * progress,
+						this._durationColor.greenOffset * progress,
+						this._durationColor.blueOffset * progress,
+						1 + this._durationColor.alphaMultiplier * progress,
+						1 + this._durationColor.redMultiplier * progress,
+						1 + this._durationColor.greenMultiplier * progress,
+						1 + this._durationColor.blueMultiplier * progress,
+						true
+				);
+			}
+		}
+	},
+
+	/** @private */
+	updateSingleFrame:function(){
+		var currentFrame = this._timeline.frameList[0];
+		this._bone.arriveAtFrame(currentFrame, this, this._animationState, false);
+		this._isComplete = true;
+		this._tweenTransform = false;
+		this._tweenScale = false;
+		this._tweenColor = false;
+		this._tweenEasing = dragonBones.NO_TWEEN_EASING;
+		this._blendEnabled = currentFrame.displayIndex >= 0;
+		
+		if (this._blendEnabled)
+		{
+			if (this._animationState.additiveBlending)
+			{
+				// additive blending
+				// singleFrame.transform (0)
+				this._transform.x =
+					this._transform.y =
+						this._transform.skewX =
+							this._transform.skewY =
+								this._transform.scaleX =
+									this._transform.scaleY = 0;
+				this._pivot.x = 0;
+				this._pivot.y = 0;
+			}else{
+				this._transform.x = this._originTransform.x;
+				this._transform.y = this._originTransform.y;
+				this._transform.skewX = this._originTransform.skewX;
+				this._transform.skewY = this._originTransform.skewY;
+				this._transform.scaleX = this._originTransform.scaleX;
+				this._transform.scaleY = this._originTransform.scaleY;
+
+				this._pivot.x = this._originPivot.x;
+				this._pivot.y = this._originPivot.y;
+			}
+
+			this._bone.invalidUpdate();
+
+			if (this._animationState.displayControl){
+				if (currentFrame.color){
+					this._bone.updateColor(
+							currentFrame.color.alphaOffset,
+							currentFrame.color.redOffset,
+							currentFrame.color.greenOffset,
+							currentFrame.color.blueOffset,
+							currentFrame.color.alphaMultiplier,
+							currentFrame.color.redMultiplier,
+							currentFrame.color.greenMultiplier,
+							currentFrame.color.blueMultiplier,
+							true
+					);
+				}else if (_bone._isColorChanged){
+					this._bone.updateColor(0, 0, 0, 0, 1, 1, 1, 1, false);
+				}
+			}
+		}
+	},
+
+	/** @private */
+	clear:function(){
+		if(this._bone){
+			this._bone.removeState(this);
+			this._bone = null;
+		}
+		
+		this._animationState = null;
+		this._timeline = null;
+		this._originTransform = null;
+		this._originPivot = null;
+	}
+});
+
+var dbTimelineStatePool = [];
+dragonBones.TimelineState._pool = dbTimelineStatePool;
+dragonBones.TimelineState.borrowObject = function(){
+	if (dbTimelineStatePool.length == 0){
+		return new dragonBones.TimelineState();
+	}
+	return dbTimelineStatePool.pop();
+};
+
+dragonBones.TimelineState.returnObject = function(timelineState){
+	if(dbTimelineStatePool.indexOf(timelineState) < 0){
+		dbTimelineStatePool.push(timelineState);
+	}
+	timelineState.clear();
+};
+dragonBones.TimelineState.clearObjects = function(){
+	var i = dbTimelineStatePool.length;
+	while (--i >= 0) {
+		dbTimelineStatePool[i].clear();
+	}
+	dbTimelineStatePool.length = 0;
 };
 
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
@@ -1944,7 +2542,7 @@ dbutils.TransformUtil = {
 		DOUBLE_PI:Math.PI * 2,
 		_helpMatrix:new dragonBones.Matrix(),
 
-		formatRadian:function (radian){
+		formatRadian:function(radian){
 			radian %= this.DOUBLE_PI;
 			if (radian > Math.PI) {
 				radian -= this.DOUBLE_PI;
@@ -1953,6 +2551,22 @@ dbutils.TransformUtil = {
 				radian += this.DOUBLE_PI;
 			}
 			return radian;
+		},
+
+		getEaseValue:function(value, easing){
+			var valueEase = 1;
+			if (easing > 1){// ease in out
+				valueEase = 0.5 * (1 - Math.cos(value * Math.PI));
+				easing -= 1;
+			}else if (easing > 0)    
+			{// ease out
+				valueEase = 1 - Math.pow(1 - value, 2);
+			}else if (easing < 0){// ease in
+				easing *= -1;
+				valueEase =  Math.pow(value, 2);
+			}
+
+			return (valueEase - value) * easing + value;
 		}
 };
 /*----------------------------------------------------------------------utils部分---------------------------------------------------------------*/
