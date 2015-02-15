@@ -1769,7 +1769,429 @@ dragonBones.TimelineState.clearObjects = function(){
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------core部分---------------------------------------------------------------*/
-dragonBones.DBObject = cc.Class.extend({
+dragonBones.Armature = cc.Class.extend({
+	name:null,
+	userData:null,
+	
+	_needUpdate:false,
+	_slotsZOrderChanged:false,
+	_delayDispose:false,
+	_lockDispose:false,
+	_isInheritAnimation:false,
+
+	_boneList:null,
+	_slotList:null,
+	_eventDataList:null,
+
+	_armatureData:null,
+	_animation:null,
+	_eventDispatcher:null,
+	_display:null,
+	
+	ctor:function(armatureData, animation, eventDispatcher, display){
+		this._armatureData = armatureData;
+		this._animation = animation;
+		this._eventDispatcher = eventDispatcher;
+		this._display = display;
+		
+		this._animation._armature = this;
+		this._slotsZOrderChanged = false;
+		
+		this._boneList = [];
+		this._slotList = [];
+		this._eventDataList = [];
+		
+		this._delayDispose = false;
+		this._lockDispose = false;
+		this._needUpdate = false;
+		
+		this._isInheritAnimation = true;
+		
+	},
+	
+	getBoundingBox:function(){},
+	getBones:function(){
+		return this._boneList;
+	},
+	
+	getSlots:function(){
+		return this._slotList;
+	},
+
+	getArmatureData:function(){
+		return this._armatureData;
+	},
+	getAnimation:function(){
+		return this._animation;
+	},
+	getDisplay:function(){
+		return this._display;
+	},
+	getEventDispatcher:function(){
+		return this._eventDispatcher;
+	},
+	
+	isInheritAnimation:function(){ return this._isInheritAnimation; },
+	
+	setInheritAnimation:function(b) { this._isInheritAnimation = b; },
+	
+	getBone:function(boneName){
+		var len = this._boneList.length;
+		var bone;
+		for (var i = 0; i < len; ++i){
+			bone = this._boneList[i];
+			if (bone.name == boneName){
+				return bone;
+			}
+		}
+		return null;
+	},
+	
+	getBoneByDisplay:function(display){
+		var slot = this.getSlotByDisplay(display);
+		return slot ? slot._parent : null;
+	},
+	
+	addBone:function(bone, parentBoneName){
+		if(parentBoneName === undefined){ parentBoneName = null; }
+		
+		var boneParent;
+		if(parentBoneName){
+			boneParent = this.getBone(parentBoneName);
+			if (!boneParent) throw new Error();//抛出错误
+		}
+		
+		if(boneParent){
+			boneParent.addChild(bone);
+		}else{
+			if (bone._parent){
+				bone._parent.removeChild(bone);
+			}
+			bone.setArmature(this);
+		}
+	},
+	
+	removeBone:function(bone){
+		if (!bone || bone._armature != this) throw new Error();
+		
+		if (bone._parent){
+			bone._parent.removeChild(bone);
+		}else{
+			bone.setArmature(null);
+		}
+	},
+	
+	removeBoneByName:function(boneName){//这里是一个函数重载在JSB绑定是需要做修改
+		var bone = this.getBone(boneName);
+		if (bone){
+			this.removeBone(bone);
+		}
+		return bone;
+	},
+
+	getSlot:function(slotName){
+		var len = this._slotList.length;
+		var slot;
+		for (var i = 0; i < len; ++i){
+			slot = this._slotList[i];
+			if (slot.name == slotName){
+				return slot;
+			}
+		}
+		return null;
+	},
+	
+	getSlotByDisplay:function(display){
+		if(display){
+			var len = this._slotList.length;
+			var slot;
+			for (var i = 0; i < len; ++i){
+				slot = this._slotList[i];
+				if (slot._display == display){
+					return slot;
+				}
+			}
+		}
+		return null;
+	},
+	
+	addSlot:function(slot, parentBoneName){
+		var bone = this.getBone(parentBoneName);
+		if (bone){
+			bone.addChild(slot);
+		}else{
+			throw new Error();//抛出错误
+		}
+	},
+	
+	removeSlot:function(slot){
+		if (!slot || slot._armature != this){
+			throw new Error();//抛出错误
+		}
+		slot._parent.removeChild(slot);
+	},
+	
+	removeSlotByName:function(slotName){//这里是一个函数重载在JSB绑定是需要做修改
+		var slot = this.getSlot(slotName);
+		if (slot){
+			this.removeSlot(slot);
+		}
+		return slot;
+	},
+	
+	replaceSlot:function(boneName, oldSlotName, newSlot){
+		var bone = this.getBone(boneName);
+		if (!bone) return;
+
+		var slots = bone.getSlots();
+		var len = slots.length;
+		var i;
+		var it;
+		var oldSlog;
+		for(i = 0; i < len; i++){
+			it = slots[i];
+			if(it.name == oldSlotName){
+				oldSlog = it;
+				break;
+			}
+		}
+		
+		if(oldSlog){
+			newSlot._tweenZOrder = oldSlog._tweenZOrder;
+			newSlot._originZOrder = oldSlog._originZOrder;
+			newSlot._offsetZOrder = oldSlog._offsetZOrder;
+			newSlot._blendMode = oldSlog._blendMode;
+			removeSlot(oldSlog);
+		}
+
+		newSlot.name = oldSlotName;
+		bone.addChild(newSlot);
+	},
+	
+	sortSlotsByZOrder:function(){
+		this._slotList.sort(this.sortSlot);
+		var l = this._slotList.length;
+		var i;
+		var slot;
+		for (i = 0; i < l; ++i){
+			slot = _slotList[i];
+			if (slot._isShowDisplay){
+				slot.removeDisplayFromContainer();
+			}
+		}
+		
+		l = this._slotList.length;
+		for (i = 0; i < l; ++i){
+			slot = _slotList[i];
+			if (slot._isShowDisplay){
+				slot.addDisplayToContainer(this._display, -1);
+			}
+		}
+		this._slotsZOrderChanged = false;
+	},
+	
+	invalidUpdate:function(boneName){
+		if(boneName === undefined){ boneName = null; }
+		
+		if(boneName){
+			var bone = this.getBone(boneName);
+			if (bone){
+				bone.invalidUpdate();
+			}
+		}else{
+			var i =this._boneList.length;
+			while(--i >= 0){
+				this._boneList[i].invalidUpdate();
+			}
+		}
+	},
+	
+	advanceTime:function(passedTime){
+		this._lockDispose = true;
+		this._animation.advanceTime(passedTime);
+		passedTime *= this._animation._timeScale;
+		var isFading = this._animation._isFading;
+		
+		var i = this._boneList.length;
+		while(--i >= 0){
+			this._boneList[i].update(isFading);
+		}
+		
+		i = this._slotList.length;
+		var slot;
+		while(--i >= 0){
+			slot = this._slotList[i];
+			slot.update();
+			if (slot._isShowDisplay && slot._childArmature){
+				slot._childArmature.advanceTime(passedTime);
+			}
+		}
+		
+		if(this._slotsZOrderChanged){
+			this.sortSlotsByZOrder();
+			//不发送更新Z轴事件
+			/*if (this._eventDispatcher.hasEvent(dragonBones.EventType.Z_ORDER_UPDATED)){
+				var eventData = new dragonBones.EventData(dragonBones.EventType.Z_ORDER_UPDATED, this);
+				this._eventDataList.push(eventData);
+			}*/
+		}
+		
+		var len = this._eventDataList.length;
+		var event;
+		if(len > 0){
+			for (i = 0; i < len; ++i){
+				event = this._eventDataList[i];
+				this._eventDispatcher.dispatchEvent(event);
+				dragonBones.EventData.returnObject(event);
+			}
+			this._eventDataList.length = 0;
+		}
+
+		this._lockDispose = false;
+		if(this._delayDispose){
+			dispose();
+		}
+	},
+	
+	dispose:function(){
+		this._delayDispose = true;
+		if(!this._animation || this._lockDispose){
+			return;
+		}
+
+		if (this._animation){
+			this._animation.dispose();
+			this._animation = null;
+		}
+
+		//存在问题
+		var i = this._boneList.length;
+		while(--i >= 0){
+			this._boneList[i].dispose();
+		}
+
+		i = this._slotList.length;
+		while(--i >= 0){
+			this._slotList[i].dispose();
+		}
+
+		i = this._eventDataList.length;
+		while(--i >= 0){
+			dragonBones.EventData.returnObject(this._eventDataList[i]);
+		}
+		
+		this._boneList.length = 0;
+		this._slotList.length = 0;
+		this._eventDataList.length = 0;
+
+		if(this._eventDispatcher){
+			this._eventDispatcher.dispose();
+			this._eventDispatcher = null;
+		}
+
+		if (this._display) this._display = null;
+		if (this.userData) this.userData = null;
+	},
+	
+	/** @protected */
+	addObject:function(object){
+		if (object instanceof dragonBones.Bone){
+			if (this._boneList.indexOf(object) < 0){
+				this._boneList.push(object);
+				this.sortBones();
+				this._animation.updateAnimationStates();
+			}
+		}else if (object instanceof Slot){
+			if(this._slotList.indexOf(object) < 0){
+				this._slotList.push(object);
+			}
+		}
+	},
+	
+	/** @protected */
+	removeObject:function(object){
+		var index;
+		if (object instanceof dragonBones.Bone){
+			index = this._boneList.indexOf(object);
+			if (index >= 0){
+				this._boneList.splice(index, 1);
+				this._animation.updateAnimationStates();
+			}
+		}else if (object instanceof Slot){
+			index = this._slotList.indexOf(object);
+			if(index >= 0){
+				this._slotList.splice(index, 1);
+			}
+		}
+	},
+	
+	/** @protected */
+	sortBones:function(){
+		var l = this._boneList.length;
+		if(l == 0){
+			return;
+		}
+		var sortedList;
+		var i;
+		var bone;
+		var parentBone;
+		var level;
+		for (i = 0; i < l; ++i){
+			bone = this._boneList[i];
+			parentBone = bone;
+			level = 0;
+			while (parentBone){
+				parentBone = parentBone._parent;
+				++level;
+			}
+			sortedList.push([level , bone]);
+		}
+		sortedList.sort(dragonBones.Armature.sortBone);
+		
+		l = sortedList.length;
+		for (i = 0; i < l; ++i){
+			this._boneList[i] = sortedList[i][1];
+		}
+	},
+	/** @protected */
+	sortSlot:function(a, b){
+		return a.getZOrder() < b.getZOrder();
+	},
+	/** @protected */
+	arriveAtFrame:function(frame, animationState, isCross){
+		var eventData;
+		if (!frame.event && this._eventDispatcher.hasEvent(dragonBones.EventType.ANIMATION_FRAME_EVENT)){
+			eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.ANIMATION_FRAME_EVENT);
+			eventData.armature = this;
+			eventData.animationState = animationState;
+			eventData.frameLabel = frame.event;
+			eventData.frame = frame;
+			this._eventDataList.push(eventData);
+		}
+
+		if (!frame.sound && DBSoundEventDispatcher && DBSoundEventDispatcher.hasEvent(dragonBones.EventType.SOUND)){
+			eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.SOUND);
+			eventData.armature = this;
+			eventData.animationState = animationState;
+			eventData.sound = frame.sound;
+			DBSoundEventDispatcher.dispatchEvent(eventData);
+		}
+
+		if (!frame.action){
+			if (animationState.displayControl){
+				this._animation.gotoAndPlay(frame.action);
+			}
+		}
+	}
+});
+
+var DBSoundEventDispatcher = null;//替换dragonBones.Armature.soundEventDispatcher = null;
+dragonBones.Armature.sortBone = function(a, b){
+	return a[0] > b[0] ? -1 : 1;
+};
+
+
+dragonBones.Object = cc.Class.extend({
 	inheritRotation:false,
 	inheritScale:false,
 	name:null,
@@ -1789,9 +2211,6 @@ dragonBones.DBObject = cc.Class.extend({
 		this.offset = new dragonBones.Transform();
 		this.offset.scaleX = this.offset.scaleY = 0;
 
-		this.inheritRotation = true;
-		this.inheritScale = true;
-
 		this._visible = true;
 		this._globalTransformMatrix = new dragonBones.Matrix();
 	},
@@ -1803,27 +2222,29 @@ dragonBones.DBObject = cc.Class.extend({
 	setVisible:function (value) {
 		this._visible = value;
 	},
-
-	setParent:function (value) {
-		this._parent = value;
-	},
-
+	
 	getParent:function(){
 		return this._parent;
 	},
-
-	setArmature:function (value) {
-		if (this._armature) {
-			this._armature.removeDBObject(this);
-		}
-		this._armature = value;
-		if (this._armature) {
-			this._armature.addDBObject(this);
-		}
-	},
-
+	
 	getArmature:function(){
 		return this._armature;
+	},
+	
+	/** @protected */
+	setParent:function (value) {
+		this._parent = value;
+	},
+	
+	/** @protected */
+	setArmature:function (value) {
+		if (this._armature){
+			this._armature.removeObject(this);
+		}
+		this._armature = armature;
+		if (this._armature){
+			this._armature.addObject(this);
+		}
 	},
 
 	dispose:function(){
@@ -2086,8 +2507,8 @@ dragonBones.Transform = cc.Class.extend({
 		var matrix = new dragonBones.Matrix();
 		parent.toMatrix(matrix, true);
 		matrix.invert();
-		x0 = this.x;
-		y0 = this.y;
+		var x0 = this.x;
+		var y0 = this.y;
 		this.x = matrix.a * x0 + matrix.c * y0 + matrix.tx;
 		this.y = matrix.d * y0 + matrix.b * x0 + matrix.ty;
 		this.skewX = dbutils.TransformUtil.formatRadian(this.skewX - parent.skewX);
@@ -2096,7 +2517,7 @@ dragonBones.Transform = cc.Class.extend({
 });
 /*----------------------------------------------------------------------geoms部分---------------------------------------------------------------*/
 
-/*objects部分*/
+/*----------------------------------------------------------------------objects部分---------------------------------------------------------------*/
 dragonBones.AnimationData = dragonBones.Timeline.extend({
 	autoTween:false,
 	frameRate:0,
@@ -2519,6 +2940,7 @@ dragonBones.TransformTimeline = dragonBones.Timeline.extend({
 		this.originPivot = null;
 	}
 });
+/*----------------------------------------------------------------------objects部分---------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------utils部分---------------------------------------------------------------*/
 dragonBones.utils = dragonBones.utils || {};

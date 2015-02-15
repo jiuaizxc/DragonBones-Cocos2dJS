@@ -69,11 +69,37 @@ var HelloWorldLayer = cc.Layer.extend({
     }
 });
 
+var PYAClass = cc.Layer.extend({
+	sprite:null,
+	ctor:function () {
+		this._super();
+		return true;
+	}
+});
+
+var PYBClass = cc.Layer.extend({
+	sprite:null,
+	ctor:function () {
+		this._super();
+		return true;
+	}
+});
+
 var HelloWorldScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
         var layer = new HelloWorldLayer();
         this.addChild(layer);
+        
+        var A = new PYAClass();
+        var B = new PYBClass();
+        
+        cc.log("------------------" + (A instanceof PYAClass));
+        cc.log("------------------" + (B instanceof PYBClass));
+        cc.log("------------------" + (A instanceof PYBClass));
+        cc.log("------------------" + (B instanceof PYAClass));
+        
+        cc.log("------------------" + (B instanceof A));
     }
 });
 
