@@ -98,8 +98,6 @@ var HelloWorldScene = cc.Scene.extend({
         cc.log("------------------" + (B instanceof PYBClass));
         cc.log("------------------" + (A instanceof PYBClass));
         cc.log("------------------" + (B instanceof PYAClass));
-        
-        cc.log("------------------" + (B instanceof A));
     }
 });
 
