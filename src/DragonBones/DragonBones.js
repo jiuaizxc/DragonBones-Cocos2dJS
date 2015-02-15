@@ -7,6 +7,41 @@ dragonBones.AUTO_TWEEN_EASING = 10;
 dragonBones.NO_TWEEN_EASING = 20;
 dragonBones.USE_FRAME_TWEEN_EASING = 30;
 
+dragonBones.AnimationFadeOutMode = {
+		NONE:0,
+		SAME_LAYER:1,
+		SAME_GROUP:2,
+		SAME_LAYER_AND_GROUP:3,
+		ALL:4
+};
+
+dragonBones.FadeState = {
+		FADE_BEFORE:0,
+		FADING:1,
+		FADE_COMPLETE:2
+};
+
+dragonBones.UpdateState = {
+		UPDATE:0,
+		UPDATE_ONCE:1,
+		UNUPDATE:2
+};
+
+dragonBones.EventType = {
+		Z_ORDER_UPDATED:0,
+		ANIMATION_FRAME_EVENT:1,
+		BONE_FRAME_EVENT:2,
+		SOUND:3,
+		FADE_IN:4,
+		FADE_OUT:5, 
+		START:6, 
+		COMPLETE:7, 
+		LOOP_COMPLETE:8, 
+		FADE_IN_COMPLETE:9, 
+		FADE_OUT_COMPLETE:10,
+		_ERROR:11
+};
+
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
 dragonBones.WorldClock = cc.Class.extend({
 	_dirty:false,
@@ -123,14 +158,6 @@ dragonBones.WorldClock.getInstance = function(){
 		dragonBones.WorldClock._instance = new dragonBones.WorldClock();
 	}
 	return dragonBones.WorldClock._instance;
-};
-
-dragonBones.AnimationFadeOutMode = {
-		NONE:0,
-		SAME_LAYER:1,
-		SAME_GROUP:2,
-		SAME_LAYER_AND_GROUP:3,
-		ALL:4
 };
 
 dragonBones.Animation = cc.Class.extend({
@@ -473,12 +500,6 @@ dragonBones.Animation = cc.Class.extend({
 		}
 	}
 });
-
-dragonBones.FadeState = {
-		FADE_BEFORE:0,
-		FADING:1,
-		FADE_COMPLETE:2
-};
 
 dragonBones.AnimationState = cc.Class.extend({
 	additiveBlending:false,
@@ -1155,12 +1176,6 @@ dragonBones.AnimationState.clearObjects = function(){
 	dbAnimationStatePool.length = 0;
 };
 
-dragonBones.UpdateState = {
-		UPDATE:0,
-		UPDATE_ONCE:1,
-		UNUPDATE:2
-};
-
 dragonBones.TimelineState = cc.Class.extend({
 	name:null,
 
@@ -1751,7 +1766,6 @@ dragonBones.TimelineState.clearObjects = function(){
 	}
 	dbTimelineStatePool.length = 0;
 };
-
 /*----------------------------------------------------------------------animation部分---------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------core部分---------------------------------------------------------------*/
@@ -1826,150 +1840,122 @@ dragonBones.DBObject = cc.Class.extend({
 /*----------------------------------------------------------------------core部分---------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------event部分---------------------------------------------------------------*/
-dragonBones.Event = cc.Class.extend({
-	type:null,
-	target:null,
-	ctor:function(type){
-		this.type = type;
-	}
-});
-
-dragonBones.EventDispatcher = cc.Class.extend({
-	_listenersMap:null,
-	ctor:function(){},
-
-	hasEventListener:function (type) {
-		if (this._listenersMap && this._listenersMap[type]) {
-			return true;
-		}
-		return false;
-	},
-
-	addEventListener:function (type, listener) {
-		if (type && listener) {
-			if (!this._listenersMap) {
-				this._listenersMap = {};
-			}
-			var listeners = this._listenersMap[type];
-			if (listeners) {
-				this.removeEventListener(type, listener);
-			}
-			if (listeners) {
-				listeners.push(listener);
-			} else {
-				this._listenersMap[type] = [listener];
-			}
-		}
-	},
-
-	removeEventListener:function (type, listener) {
-		if (!this._listenersMap || !type || !listener) {
-			return;
-		}
-		var listeners = this._listenersMap[type];
-		if (listeners) {
-			var length = listeners.length;
-			for (var i = 0; i < length; i++) {
-				if (listeners[i] == listener) {
-					if (length == 1) {
-						listeners.length = 0;
-						delete this._listenersMap[type];
-					} else {
-						listeners.splice(i, 1);
-					}
-				}
-			}
-		}
-	},
-
-	removeAllEventListeners:function (type) {
-		if (type) {
-			delete this._listenersMap[type];
-		} else {
-			this._listenersMap = null;
-		}
-	},
-
-	dispatchEvent:function (event) {
-		if (event) {
-			var listeners = this._listenersMap[event.type];
-			if (listeners) {
-				event.target = this;
-				var listenersCopy = listeners.concat();
-				var length = listeners.length;
-				for (var i = 0; i < length; i++) {
-					listenersCopy[i](event);
-				}
-			}
-		}
-	}
-});
-
-dragonBones.AnimationEvent = dragonBones.Event.extend({
-	animationState:null,
-
-	ctor:function(type){
-		dragonBones.Event.prototype.ctor.call(this, type);
-	},
-
-	getAnimationName:function(){
-		return this.animationState.name;
-	}
-});
-dragonBones.AnimationEvent.FADE_IN = "fadeIn";
-dragonBones.AnimationEvent.FADE_OUT = "fadeOut";
-dragonBones.AnimationEvent.START = "start";
-dragonBones.AnimationEvent.COMPLETE = "complete";
-dragonBones.AnimationEvent.LOOP_COMPLETE = "loopComplete";
-dragonBones.AnimationEvent.FADE_IN_COMPLETE = "fadeInComplete";
-dragonBones.AnimationEvent.FADE_OUT_COMPLETE = "fadeOutComplete";
-
-dragonBones.ArmatureEvent = dragonBones.Event.extend({
-	ctor:function(type){
-		dragonBones.Event.prototype.ctor.call(this, type);
-	}
-});
-dragonBones.ArmatureEvent.Z_ORDER_UPDATED = "zOrderUpdated";
-
-dragonBones.FrameEvent = dragonBones.Event.extend({
+dragonBones.EventData = cc.Class.extend({
 	frameLabel:null,
-	bone:null,
-	animationState:null,
-
-	ctor:function(type){
-		dragonBones.Event.prototype.ctor.call(this, type);
-	}
-});
-dragonBones.FrameEvent.ANIMATION_FRAME_EVENT = "animationFrameEvent";
-dragonBones.FrameEvent.BONE_FRAME_EVENT = "boneFrameEvent";
-
-dragonBones.SoundEvent = dragonBones.Event.extend({
-	armature:null,
-	animationState:null,
 	sound:null,
 
-	ctor:function(type){
-		dragonBones.Event.prototype.ctor.call(this, type);
+	armature:null,
+	bone:null,
+	animationState:null,
+	frame:null,
+	
+	_type:0,
+	
+	ctor:function(type, armatureTarget){//函数重载
+		if(type === undefined) { type = dragonBones.EventType._ERROR; }
+		if(armatureTarget === undefined) { armatureTarget = null; }
+		this._type = type;
+		this.armature = armatureTarget;
+	},
+	
+	getType:function(){
+		return this._type;
+	},
+	
+	getStringType:function(){
+		return dragonBones.EventData.typeToString(_type);
+	},
+	
+	clear:function(){
+		this.armature = null;
+		this.bone = null;
+		this.animationState = null;
+		this.frame = null;
+		this.frameLabel = null;
+		this.sound = null;
+	},
+	
+	copy:function(copyData){
+		this._type = copyData._type;
+		this.frameLabel = copyData.frameLabel;
+		this.sound = copyData.sound;
+		this.armature = copyData.armature;
+		this.bone = copyData.bone;
+		this.animationState = copyData.animationState;
+		this.frame = copyData.frame;
 	}
 });
-dragonBones.SoundEvent.SOUND = "sound";
 
-dragonBones.SoundEventManager = dragonBones.EventDispatcher.extend({
-	ctor:function(){
-		dragonBones.EventDispatcher.prototype.ctor.call(this);
-		if (dragonBones.SoundEventManager._instance) {
-			throw new Error("Singleton already constructed!");
-		}
-	}
-});
+dragonBones.EventData.Z_ORDER_UPDATED = "zorderUpdate";
+dragonBones.EventData.ANIMATION_FRAME_EVENT = "animationFrameEvent";
+dragonBones.EventData.BONE_FRAME_EVENT = "boneFrameEvent";
+dragonBones.EventData.SOUND = "sound";
+dragonBones.EventData.FADE_IN = "fadeIn";
+dragonBones.EventData.FADE_OUT = "fadeOut";
+dragonBones.EventData.START = "start";
+dragonBones.EventData.COMPLETE = "complete";
+dragonBones.EventData.LOOP_COMPLETE = "loopComplete";
+dragonBones.EventData.FADE_IN_COMPLETE = "fadeInComplete";
+dragonBones.EventData.FADE_OUT_COMPLETE = "fadeOutComplete";
+dragonBones.EventData._ERROR = "error";
 
-dragonBones.SoundEventManager._instance = null;
-dragonBones.SoundEventManager.getInstance = function(){
-	if(dragonBones.SoundEventManager._instance == null){
-		dragonBones.SoundEventManager._instance = new dragonBones.SoundEventManager();
+var dbEventDataPool = [];
+dragonBones.EventData._pool = dbEventDataPool;
+dragonBones.EventData.typeToString = function(eventType){
+	switch (eventType)
+	{
+	case dragonBones.EventType.Z_ORDER_UPDATED:
+		return dragonBones.EventData.Z_ORDER_UPDATED;
+	case dragonBones.EventType.ANIMATION_FRAME_EVENT:
+		return dragonBones.EventData.ANIMATION_FRAME_EVENT;
+	case dragonBones.EventType.BONE_FRAME_EVENT:
+		return dragonBones.EventData.BONE_FRAME_EVENT;
+	case dragonBones.EventType.SOUND:
+		return dragonBones.EventData.SOUND;
+	case dragonBones.EventType.FADE_IN:
+		return dragonBones.EventData.FADE_IN;
+	case dragonBones.EventType.FADE_OUT:
+		return dragonBones.EventData.FADE_OUT;
+	case dragonBones.EventType.START:
+		return dragonBones.EventData.START;
+	case dragonBones.EventType.COMPLETE:
+		return dragonBones.EventData.COMPLETE;
+	case dragonBones.EventType.LOOP_COMPLETE:
+		return dragonBones.EventData.LOOP_COMPLETE;
+	case dragonBones.EventType.FADE_IN_COMPLETE:
+		return dragonBones.EventData.FADE_IN_COMPLETE;
+	case dragonBones.EventType.FADE_OUT_COMPLETE:
+		return dragonBones.EventData.FADE_OUT_COMPLETE;
+	default:
+		break;
 	}
-	return dragonBones.SoundEventManager._instance;
-}
+	// throw
+	return dragonBones.EventData._ERROR;
+};
+
+dragonBones.EventData.borrowObject = function(eventType){
+	if (dbEventDataPool.length == 0){
+		return new dragonBones.EventData(eventType, null);
+	}
+	var eventData = dbEventDataPool.pop();
+	eventData._type = eventType;
+	return eventData;
+};
+
+dragonBones.EventData.returnObject = function(eventData){
+	if(dbEventDataPool.indexOf(eventData) < 0){
+		dbEventDataPool.push(eventData);
+	}
+	eventData.clear();
+};
+
+dragonBones.EventData.clearObjects = function(){
+	var i = dbEventDataPool.length;
+	while (--i >= 0) {
+		dbEventDataPool[i].clear();
+	}
+	dbEventDataPool.length = 0;
+};
 /*----------------------------------------------------------------------event部分---------------------------------------------------------------*/
 
 
