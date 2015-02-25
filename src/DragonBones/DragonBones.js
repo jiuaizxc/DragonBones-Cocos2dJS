@@ -3,9 +3,108 @@ var dragonBones = dragonBones || {};
 dragonBones.FT_FRAME = 0;
 dragonBones.FT_TRANSFORM_FRAME = 1;
 
+dragonBones.ANGLE_TO_RADIAN = Math.PI / 180;
+dragonBones.RADIAN_TO_ANGLE = 180 / Math.PI;
+
 dragonBones.AUTO_TWEEN_EASING = 10;
 dragonBones.NO_TWEEN_EASING = 20;
 dragonBones.USE_FRAME_TWEEN_EASING = 30;
+
+var dbConstValues = {
+		DRAGON_BONES:"dragonBones",
+		ARMATURE:"armature",
+		SKIN:"skin",
+		BONE:"bone",
+		SLOT:"slot",
+		DISPLAY:"display",
+		ANIMATION:"animation",
+		TIMELINE:"timeline",
+		FRAME:"frame",
+		TRANSFORM:"transform",
+		COLOR_TRANSFORM:"colorTransform",
+		RECTANGLE:"rectangle",
+		ELLIPSE:"ellipse",
+		TEXT:"text",
+		COLOR:"color",
+		SCALING_GRID:"scalingGrid",
+
+		TEXTURE_ATLAS:"TextureAtlas",
+		SUB_TEXTURE:"SubTexture",
+
+		A_ROTATED:"rotated",
+		A_FRAME_X:"frameX",
+		A_FRAME_Y:"frameY",
+		A_FRAME_WIDTH:"frameWidth",
+		A_FRAME_HEIGHT:"frameHeight",
+
+		A_VERSION:"version",
+		A_IMAGE_PATH:"imagePath",
+		A_FRAME_RATE:"frameRate",
+		A_NAME:"name",
+		A_PARENT:"parent",
+		A_LENGTH:"length",
+		A_TYPE:"type",
+		A_FADE_IN_TIME:"fadeInTime",
+		A_DURATION:"duration",
+		A_SCALE:"scale",
+		A_OFFSET:"offset",
+		A_LOOP:"loop",
+		A_EVENT:"event",
+		A_EVENT_PARAMETERS:"eventParameters",
+		A_SOUND:"sound",
+		A_ACTION:"action",
+		A_HIDE:"hide",
+		A_AUTO_TWEEN:"autoTween",
+		A_TWEEN_EASING:"tweenEasing",
+		A_TWEEN_ROTATE:"tweenRotate",
+		A_TWEEN_SCALE:"tweenScale",
+		A_DISPLAY_INDEX:"displayIndex",
+		A_Z_ORDER:"z",
+		A_BLENDMODE:"blendMode",
+		A_WIDTH:"width",
+		A_HEIGHT:"height",
+		A_INHERIT_ROTATION:"inheritRotation",
+		A_INHERIT_SCALE:"inheritScale",
+		A_X:"x",
+		A_Y:"y",
+		A_SKEW_X:"skX",
+		A_SKEW_Y:"skY",
+		A_SCALE_X:"scX",
+		A_SCALE_Y:"scY",
+		A_PIVOT_X:"pX",
+		A_PIVOT_Y:"pY",
+		A_ALPHA_OFFSET:"aO",
+		A_RED_OFFSET:"rO",
+		A_GREEN_OFFSET:"gO",
+		A_BLUE_OFFSET:"bO",
+		A_ALPHA_MULTIPLIER:"aM",
+		A_RED_MULTIPLIER:"rM",
+		A_GREEN_MULTIPLIER:"gM",
+		A_BLUE_MULTIPLIER:"bM",
+
+		A_ALPHA:"a",
+		A_RED:"r",
+		A_GREEN:"g",
+		A_BLUE:"b",
+
+		A_LEFT:"left",
+		A_RIGHT:"right",
+		A_TOP:"top",
+		A_BOTTOM:"bottom",
+
+		A_BOLD:"bold",
+		A_ITALIC:"italic",
+		A_SIZE:"size",
+		A_FACE:"face",
+		A_ALIGN_H:"alignH",
+		A_ALIGN_V:"alignV",
+		A_LINE_TYPE:"lineType",
+		A_TEXT_TYPE:"textType",
+		A_TEXT:"text",
+
+		A_SCALE_X_OFFSET:"scXOffset",
+		A_SCALE_Y_OFFSET:"scYOffset",
+};
 
 dragonBones.AutoSearchType = {
 		AST_ALL:0,
@@ -31,6 +130,71 @@ dragonBones.BlendMode = {
 		BM_SUBTRACT:14
 };
 
+dragonBones.getBlendModeByString = function(blendMode)
+{
+	if (blendMode == "normal")
+	{
+		return dragonBones.BlendMode.BM_NORMAL;
+	}
+	else if (blendMode == "add")
+	{
+		return dragonBones.BlendMode.BM_ADD;
+	}
+	else if (blendMode == "alpha")
+	{
+		return dragonBones.BlendMode.BM_ALPHA;
+	}
+	else if (blendMode == "darken")
+	{
+		return dragonBones.BlendMode.BM_DARKEN;
+	}
+	else if (blendMode == "difference")
+	{
+		return dragonBones.BlendMode.BM_DIFFERENCE;
+	}
+	else if (blendMode == "erase")
+	{
+		return dragonBones.BlendMode.BM_ERASE;
+	}
+	else if (blendMode == "hardLight")
+	{
+		return dragonBones.BlendMode.BM_HARDLIGHT;
+	}
+	else if (blendMode == "invert")
+	{
+		return dragonBones.BlendMode.BM_INVERT;
+	}
+	else if (blendMode == "layer")
+	{
+		return dragonBones.BlendMode.BM_LAYER;
+	}
+	else if (blendMode == "lighten")
+	{
+		return dragonBones.BlendMode.BM_LIGHTEN;
+	}
+	else if (blendMode == "multiply")
+	{
+		return dragonBones.BlendMode.BM_MULTIPLY;
+	}
+	else if (blendMode == "overlay")
+	{
+		return dragonBones.BlendMode.BM_OVERLAY;
+	}
+	else if (blendMode == "screen")
+	{
+		return dragonBones.BlendMode.BM_SCREEN;
+	}
+	else if (blendMode == "shader")
+	{
+		return dragonBones.BlendMode.BM_SHADER;
+	}
+	else if (blendMode == "subtract")
+	{
+		return dragonBones.BlendMode.BM_SUBTRACT;
+	}
+	return dragonBones.BlendMode.BM_NORMAL;
+}
+
 dragonBones.DisplayType = {
 		DT_IMAGE:0,
 		DT_ARMATURE:1,
@@ -42,6 +206,28 @@ dragonBones.DisplayType = {
 		DT_4:7,
 		DT_5:8
 };
+
+dragonBones.getDisplayTypeByString = function(displayType)
+{
+	if (displayType == "image")
+	{
+		return dragonBones.DisplayType.DT_IMAGE;
+	}
+	else if (displayType == "armature")
+	{
+		return dragonBones.DisplayType.DT_ARMATURE;
+	}
+	else if (displayType == "frame")
+	{
+		return dragonBones.DisplayType.DT_FRAME;
+	}
+	else if (displayType == "text")
+	{
+		return dragonBones.DisplayType.DT_TEXT;
+	}
+
+	return dragonBones.DisplayType.DT_IMAGE;
+}
 
 dragonBones.AnimationFadeOutMode = {
 		NONE:0,
@@ -4101,7 +4287,533 @@ dragonBones.TransformTimeline = dragonBones.Timeline.extend({
 });
 /*----------------------------------------------------------------------objects部分---------------------------------------------------------------*/
 
+
+/*----------------------------------------------------------------------parsers部分---------------------------------------------------------------*/
+dragonBones.BaseDataParser = cc.Class.extend({
+	ctor:function(){},
+	
+	parseTextureAtlasData:function(rawTextureAtlasData, scale){
+		if(scale === undefined){ scale = 1; }
+	},
+	
+	parseDragonBonesData:function(rawDragonBonesData, scale){
+		if(scale === undefined){ scale = 1; }
+	}
+});
+
+dragonBones.BaseDataParser.transformArmatureData = function(armatureData){};
+dragonBones.BaseDataParser.transformArmatureDataAnimations = function(armatureData){};
+dragonBones.BaseDataParser.transformAnimationData = function(animationData, armatureData){};
+dragonBones.BaseDataParser.addHideTimeline = function(animationData, armatureData){};
+dragonBones.BaseDataParser.setFrameTransform = function(animationData, armatureData, boneData, frame){};
+dragonBones.BaseDataParser.getTimelineTransform = function(timeline, position, retult, isGlobal){};
+
+
+dragonBones.ObjectDataParser = dragonBones.BaseDataParser.extend({
+	_textureScale:0,
+	_armatureScale:0,
+	_frameRate:0,
+	
+	ctor:function(){
+		this._textureScale = 1;
+		this._armatureScale = 1;
+		this._frameRate = 30;
+	},
+	
+	parseTextureAtlasData:function(rawTextureAtlasData, scale){
+		if(scale === undefined){ scale = 1; }
+	
+		this._textureScale = scale;
+		var textureAtlasData = new dragonBones.TextureAtlasData();
+		textureAtlasData.name = rawTextureAtlasData[dbConstValues.A_NAME];
+		//textureAtlasData.imagePath = textureAtlasXML.Attribute(dbConstValues.A_IMAGE_PATH);
+
+		var textureData;
+		var subTextureList = rawTextureAtlasData[dbConstValues.SUB_TEXTURE];
+		for(var key in subTextureList){
+			textureData = this.parseTextureData(subTextureList[key]);
+			textureAtlasData.textureDataList.push(textureData);
+		}
+		return textureAtlasData;
+	},
+
+	parseDragonBonesData:function(rawDragonBonesData, scale){
+		if(scale === undefined){ scale = 1; }
+		
+		this._armatureScale = scale;
+		//const XMLElement *dragonBonesXML = static_cast<const XMLElement*>(rawDragonBonesData);
+		//std::string version = dragonBonesXML.Attribute(dbConstValues.A_VERSION);
+
+		this._frameRate = this.getNumber(rawDragonBonesData, dbConstValues.A_FRAME_RATE, 0, 0);
+		var dragonBonesData = new dragonBones.DragonBonesData();
+		dragonBonesData.name = rawDragonBonesData[dbConstValues.A_NAME];
+
+		var armatureData;
+		var armatureList = rawDragonBonesData[dbConstValues.ARMATURE];
+		for(var key in armatureList){
+			armatureData = this.parseArmatureData(armatureList[key]);//存在问题
+			dragonBonesData.armatureDataList.push(armatureData);
+		}
+
+		return dragonBonesData;
+	},
+	
+	parseTextureData:function(textureXML){
+		var textureData = new dragonBones.TextureData();
+		textureData.name = textureXML[dbConstValues.A_NAME];
+		textureData.rotated = textureXML[dbConstValues.A_ROTATED] == "true";
+		textureData.region.x = this.getNumber(textureXML, dbConstValues.A_X, 0) / this._textureScale;
+		textureData.region.y = this.getNumber(textureXML, dbConstValues.A_Y, 0) / this._textureScale;
+		textureData.region.width = this.getNumber(textureXML, dbConstValues.A_WIDTH, 0) / this._textureScale;
+		textureData.region.height = this.getNumber(textureXML, dbConstValues.A_HEIGHT, 0) / this._textureScale;
+		var frameWidth = this.getNumber(textureXML, dbConstValues.A_FRAME_WIDTH, 0) / this._textureScale;
+		var frameHeight = this.getNumber(textureXML, dbConstValues.A_FRAME_HEIGHT, 0) / this._textureScale;
+
+		if (frameWidth > 0 && frameHeight > 0)
+		{
+			textureData.frame = new dragonBones.Rectangle();
+			textureData.frame.x = this.getNumber(textureXML, dbConstValues.A_FRAME_X, 0) / this._textureScale;
+			textureData.frame.y = this.getNumber(textureXML, dbConstValues.A_FRAME_Y, 0) / this._textureScale;
+			textureData.frame.width = frameWidth;
+			textureData.frame.height = frameHeight;
+		}
+
+		return textureData;
+	},
+
+	parseArmatureData:function(armatureXML){
+		var armatureData = new dragonBones.ArmatureData();
+		armatureData.name = armatureXML[dbConstValues.A_NAME];
+
+		var key;
+		
+		var boneList = armatureXML[dbConstValues.BONE];
+		var boneData;
+		for(key in boneList){
+			boneData = this.parseBoneData(boneList[key]);
+			armatureData.boneDataList.push(boneData);
+		}
+
+		var skinList = armatureXML[dbConstValues.SKIN];
+		var skinData;
+		for(key in skinList){
+			skinData = this.parseSkinData(skinList[key]);
+			armatureData.skinDataList.push(skinData);
+		}
+
+		dragonBones.BaseDataParser.transformArmatureData(armatureData);
+		armatureData.sortBoneDataList();
+
+		var animationList = armatureXML[dbConstValues.ANIMATION];
+		var animationData;
+		for(key in animationList){
+			animationData = this.parseAnimationData(animationList[key], armatureData);
+			armatureData.animationDataList.push(animationData);
+		}
+
+		//不解析碰撞数据
+		/*for (const XMLElement *rectangleXML = armatureXML.FirstChildElement(dbConstValues.RECTANGLE); rectangleXML; rectangleXML = rectangleXML.NextSiblingElement(dbConstValues.RECTANGLE))
+		{
+			RectangleData *rectangleData = parseRectangleData(rectangleXML);
+			armatureData.areaDataList.push_back(rectangleData);
+		}
+
+		for (const XMLElement *ellipseXML = armatureXML.FirstChildElement(dbConstValues.ELLIPSE); ellipseXML; ellipseXML = ellipseXML.NextSiblingElement(dbConstValues.ELLIPSE))
+		{
+			EllipseData *ellipseData = parseEllipseData(ellipseXML);
+			armatureData.areaDataList.push_back(ellipseData);
+		}*/
+
+		return armatureData;
+	},
+	
+	parseBoneData:function(boneXML){
+		var boneData = new dragonBones.BoneData();
+		boneData.name = boneXML[dbConstValues.A_NAME];
+		var parent = boneXML[dbConstValues.A_PARENT];
+		if (parent){
+			boneData.parent = parent;
+		}
+
+		boneData.length = this.getNumber(boneXML, dbConstValues.A_LENGTH, 0, 0);
+		boneData.inheritRotation = this.getBoolean(boneXML, dbConstValues.A_INHERIT_ROTATION, true);
+		boneData.inheritScale = this.getBoolean(boneXML, dbConstValues.A_INHERIT_SCALE, false);
+
+		var transformXML = boneXML[dbConstValues.TRANSFORM];
+		if (transformXML){
+			dragonBones.BaseDataParser.parseTransform(transformXML, boneData.global);
+		}
+		boneData.transform = boneData.global;
+
+		//不解析碰撞数据
+		/*for (const XMLElement *rectangleXML = boneXML.FirstChildElement(dbConstValues.RECTANGLE); rectangleXML; rectangleXML = rectangleXML.NextSiblingElement(dbConstValues.RECTANGLE))
+		{
+			RectangleData *rectangleData = parseRectangleData(rectangleXML);
+			boneData.areaDataList.push_back(rectangleData);
+		}
+
+		for (const XMLElement *ellipseXML = boneXML.FirstChildElement(dbConstValues.ELLIPSE); ellipseXML; ellipseXML = ellipseXML.NextSiblingElement(dbConstValues.ELLIPSE))
+		{
+			EllipseData *ellipseData = parseEllipseData(ellipseXML);
+			boneData.areaDataList.push_back(ellipseData);
+		}*/
+
+		return boneData;
+	},
+	
+	parseSkinData:function(skinXML){
+		var skinData = new dragonBones.SkinData();
+		skinData.name = skinXML[dbConstValues.A_NAME];
+
+		var slotList = skinXML[ConstValues.SLOT];
+		var slotData;
+		for(var key in slotList){
+			slotData = this.parseSlotData(slotList[key]);
+			skinData.slotDataList.push(slotData);
+		}
+
+		return skinData;
+	},
+	
+	parseSlotData:function(slotXML){
+		var slotData = new dragonBones.SlotData();
+		slotData.name = slotXML[dbConstValues.A_NAME];
+		slotData.parent = slotXML[dbConstValues.A_PARENT];
+		slotData.zOrder = this.getNumber(slotXML, dbConstValues.A_Z_ORDER, 0, 0);
+
+		if (slotXML[dbConstValues.A_BLENDMODE]){
+			slotData.blendMode = dragonBones.getBlendModeByString(slotXML[dbConstValues.A_BLENDMODE]);
+		}
+
+		var displayList = slotXML[dbConstValues.DISPLAY];
+		var displayData;
+		for(var key in displayList){
+			displayData = this.parseDisplayData(displayList[key]);
+			slotData.displayDataList.push(displayData);
+		}
+
+		return slotData;
+	},
+	
+	parseDisplayData:function(displayXML){
+		var displayData = new dragonBones.DisplayData();
+		displayData.name = displayXML[ConstValues.A_NAME];
+		displayData.type = dragonBones.getDisplayTypeByString(displayXML[dbConstValues.A_TYPE]);
+
+		var scalingGridXML = displayXML[dbConstValues.SCALING_GRID];
+		if (scalingGridXML){
+			displayData.scalingGrid = true;
+			displayData.scalingGridLeft = this.getNumber(scalingGridXML, dbConstValues.A_LEFT, 0, 0);
+			displayData.scalingGridRight = this.getNumber(scalingGridXML, dbConstValues.A_RIGHT, 0, 0);
+			displayData.scalingGridTop = this.getNumber(scalingGridXML, dbConstValues.A_TOP, 0, 0);
+			displayData.scalingGridBottom = this.getNumber(scalingGridXML, dbConstValues.A_BOTTOM, 0, 0);
+		}else{
+			displayData.scalingGrid = false;
+		}
+
+		var transformXML = displayXML[dbConstValues.TRANSFORM];
+		if (transformXML){
+			this.parseTransform(transformXML, displayData.transform);
+			this.parsePivot(transformXML, displayData.pivot);
+		}
+
+		//不解析文本数据
+		/*const XMLElement *textXML = displayXML.FirstChildElement(dbConstValues.TEXT);
+		if (textXML)
+		{
+			displayData.textData = new TextData();
+			parseTextData(*textXML, *displayData.textData);
+		}*/
+
+		return displayData;
+	},
+	
+	parseAnimationData:function(animationXML, armatureData){
+		var animationData = new dragonBones.AnimationData();
+		animationData.name = animationXML[dbConstValues.A_NAME];
+		animationData.frameRate = this._frameRate;
+		animationData.duration = Math.round(this.getNumber(animationXML, dbConstValues.A_DURATION, 1, 1) * 1000 / this._frameRate);
+		animationData.playTimes = this.getNumber(animationXML, dbConstValues.A_LOOP, 1, 1);
+		animationData.fadeTime = this.getNumber(animationXML, dbConstValues.A_FADE_IN_TIME, 0, 0);
+		animationData.scale = this.getNumber(animationXML, dbConstValues.A_SCALE, 1, 1);
+		
+		// use frame tweenEase, NaN
+		// overwrite frame tweenEase, [-1, 0):ease in, 0:line easing, (0, 1]:ease out, (1, 2]:ease in out
+		animationData.tweenEasing = this.getNumber(animationXML, dbConstValues.A_TWEEN_EASING, dragonBones.USE_FRAME_TWEEN_EASING, dragonBones.USE_FRAME_TWEEN_EASING);
+		animationData.autoTween = this.getBoolean(animationXML, dbConstValues.A_AUTO_TWEEN, true);
+
+		var key;
+		
+		var frameObjectList = animationObject[dbConstValues.FRAME];
+		var frame;
+		for(key in frameObjectList){
+			frame = this.parseMainFrame(frameObjectList[key]);
+			animationData.frameList.push(frame);
+		}
+
+		this.parseTimeline(animationXML, animationData);
+		
+		var timelineObjectList = animationObject[dbdbConstValues.TIMELINE];
+		var timeline;
+		for(key in timelineObjectList){
+			timeline = this.parseTransformTimeline(timelineXML, animationData.duration);
+			animationData.timelineList.push(timeline);
+		}
+
+		dragonBones.BaseDataParser.addHideTimeline(animationData, armatureData);
+		dragonBones.BaseDataParser.transformAnimationData(animationData, armatureData);
+		return animationData;
+	},
+	
+	parseTransformTimeline:function(timelineXML, duration){
+		var timeline = new dragonBones.TransformTimeline();
+		timeline.name = timelineXML[dbConstValues.A_NAME];
+		timeline.scale = this.getNumber(timelineXML, dbConstValues.A_SCALE, 1, 0);
+		timeline.offset = this.getNumber(timelineXML, dbConstValues.A_OFFSET, 0, 0);
+		timeline.duration = duration;
+		
+		var frameList = timelineXML[dbConstValues.FRAME];
+		var frame;
+		for(var key in frameList){
+			frame = this.parseTransformFrame(frameList[key]);
+			timeline.frameList.push(frame);
+		}
+		
+		this.parseTimeline(timelineXML, timeline);
+		return timeline;
+	},
+	
+	parseMainFrame:function(frameXML){
+		var frame = new dragonBones.Frame();
+		this.parseFrame(frameXML, frame);
+		return frame;
+	},
+	
+	parseTransformFrame:function(frameXML){
+		var frame = new dragonBones.TransformFrame();
+		this.parseFrame(frameXML, frame);
+
+		frame.visible = !this.getBoolean(frameXML, dbConstValues.A_HIDE, false);
+		// NaN:no tween, 10:auto tween, [-1, 0):ease in, 0:line easing, (0, 1]:ease out, (1, 2]:ease in out
+		frame.tweenEasing = this.getNumber(frameXML, dbConstValues.A_TWEEN_EASING, dragonBones.AUTO_TWEEN_EASING, dragonBones.NO_TWEEN_EASING);
+		frame.tweenRotate = Math.floor(this.getNumber(frameXML, ConstValues.A_TWEEN_ROTATE, 0, 0));
+		frame.tweenScale = this.getBoolean(frameXML, dbConstValues.A_TWEEN_SCALE, true);
+		frame.displayIndex = Math.floor(this.getNumber(frameXML, ConstValues.A_DISPLAY_INDEX, 0, 0));
+		frame.zOrder = this.getNumber(frameXML, dbConstValues.A_Z_ORDER, 0, 0);
+
+		var transformXML = frameXML[dbConstValues.TRANSFORM];
+		if (transformXML){
+			this.parseTransform(transformXML, frame.global);
+			this.parsePivot(transformXML, frame.pivot);
+		}
+
+		// copy
+		frame.transform = frame.global;
+		frame.scaleOffset.x = this.getNumber(frameXML, dbConstValues.A_SCALE_X_OFFSET, 0, 0);
+		frame.scaleOffset.y = this.getNumber(frameXML, dbConstValues.A_SCALE_Y_OFFSET, 0, 0);
+
+		var colorTransformXML = frameXML[dbConstValues.COLOR_TRANSFORM];
+		if (colorTransformXML){
+			frame.color = new dragonBones.ColorTransform();
+			this.parseColorTransform(colorTransformXML, frame.color);
+		}
+
+		return frame;
+	},
+	
+	parseRectangleData:function(rectangleXML){
+		/*RectangleData *rectangleData = new RectangleData();
+		rectangleData->name = rectangleXML->Attribute(dbConstValues.A_NAME);
+		rectangleData->width = rectangleXML->FloatAttribute(dbConstValues.A_WIDTH);
+		rectangleData->height = rectangleXML->FloatAttribute(dbConstValues.A_HEIGHT);
+
+		const XMLElement *transformXML = rectangleXML->FirstChildElement(dbConstValues.TRANSFORM);
+		if (transformXML)
+		{
+			parseTransform(*transformXML, rectangleData->transform);
+			parsePivot(*transformXML, rectangleData->pivot);
+		}
+
+		return rectangleData;*/
+		return null;
+	},
+	
+	parseEllipseData:function(ellipseXML){
+		/*EllipseData *ellipseData = new EllipseData();
+		ellipseData->name = ellipseXML->Attribute(dbConstValues.A_NAME);
+		ellipseData->width = ellipseXML->FloatAttribute(dbConstValues.A_WIDTH);
+		ellipseData->height = ellipseXML->FloatAttribute(dbConstValues.A_HEIGHT);
+
+		const XMLElement *transformXML = ellipseXML->FirstChildElement(dbConstValues.TRANSFORM);
+		if (transformXML)
+		{
+			parseTransform(*transformXML, ellipseData->transform);
+			parsePivot(*transformXML, ellipseData->pivot);
+		}
+
+		return ellipseData;*/
+		return null;
+	},
+
+	parseTimeline:function(timelineXML, timeline){
+		var position = 0;
+		var frame = null;
+
+		for (var i = 0, l = timeline.frameList.length; i < l; ++i)
+		{
+			frame = timeline.frameList[i];
+			frame.position = position;
+			position += frame.duration;
+		}
+
+		if (frame){
+			frame.duration = timeline.duration - frame.position;
+		}
+	},
+	
+	parseFrame:function(frameXML, frame){
+		frame.duration = Math.round(this.getNumber(frameXML, dbConstValues.A_DURATION, 1, 1) * 1000 / this._frameRate);
+		frame.action = frameXML[dbConstValues.A_ACTION];
+		frame.event = frameXML[dbConstValues.A_EVENT];
+		frame.sound = frameXML[dbConstValues.A_SOUND];
+	},
+	
+	parseTransform:function(transformXML, transform){
+		transform.x = this.getNumber(transformXML, dbConstValues.A_X, 0, 0) / this._armatureScale;
+		transform.y = this.getNumber(transformXML, dbConstValues.A_Y, 0, 0) / this._armatureScale;
+		transform.skewX = this.getNumber(transformXML, dbConstValues.A_SKEW_X, 0, 0) * dragonBones.ANGLE_TO_RADIAN;
+		transform.skewY = this.getNumber(transformXML, dbConstValues.A_SKEW_Y, 0, 0) * dragonBones.ANGLE_TO_RADIAN;
+		transform.scaleX = this.getNumber(transformXML, dbConstValues.A_SCALE_X, 1, 0);
+		transform.scaleY = this.getNumber(transformXML, dbConstValues.A_SCALE_Y, 1, 0);
+	},
+	
+	parsePivot:function(transformXML, pivot){
+		pivot.x = this.getNumber(transformXML, dbConstValues.A_PIVOT_X, 0, 0) / this._armatureScale;
+		pivot.y = this.getNumber(transformXML, dbConstValues.A_PIVOT_Y, 0, 0) / this._armatureScale;
+	},
+	
+	parseColorTransform:function(colorTransformXML, colorTransform){
+		colorTransform.alphaOffset = this.getNumber(colorTransformXML, dbConstValues.A_ALPHA_OFFSET, 0, 0);
+		colorTransform.redOffset = this.getNumber(colorTransformXML, dbConstValues.A_RED_OFFSET, 0, 0);
+		colorTransform.greenOffset = this.getNumber(colorTransformXML, dbConstValues.A_GREEN_OFFSET, 0, 0);
+		colorTransform.blueOffset = this.getNumber(colorTransformXML, dbConstValues.A_BLUE_OFFSET, 0, 0);
+		colorTransform.alphaMultiplier = this.getNumber(colorTransformXML, dbConstValues.A_ALPHA_MULTIPLIER, 100, 100) * 0.01;
+		colorTransform.redMultiplier = this.getNumber(colorTransformXML, dbConstValues.A_RED_MULTIPLIER, 100, 100) * 0.01;
+		colorTransform.greenMultiplier = this.getNumber(colorTransformXML, dbConstValues.A_GREEN_MULTIPLIER, 100, 100) * 0.01;
+		colorTransform.blueMultiplier = this.getNumber(colorTransformXML, dbConstValues.A_BLUE_MULTIPLIER, 100, 100) * 0.01;
+	},
+	
+	parseTextData:function(textXML, textData){
+		/*textData.bold = getBoolean(textXML, ConstValues::A_BOLD.c_str(), false);
+		textData.italic = getBoolean(textXML, ConstValues::A_ITALIC.c_str(), false);
+
+		textData.size = textXML.UnsignedAttribute(ConstValues::A_SIZE.c_str());
+
+		const XMLElement *colorXML = textXML.FirstChildElement(ConstValues::COLOR.c_str());
+		if (colorXML)
+		{
+			textData.alpha = colorXML->UnsignedAttribute(ConstValues::A_ALPHA.c_str());
+			textData.red = colorXML->UnsignedAttribute(ConstValues::A_RED.c_str());
+			textData.green = colorXML->UnsignedAttribute(ConstValues::A_GREEN.c_str());
+			textData.blue = colorXML->UnsignedAttribute(ConstValues::A_BLUE.c_str());
+		}
+
+		textData.width = textXML.UnsignedAttribute(ConstValues::A_WIDTH.c_str());
+		textData.height = textXML.UnsignedAttribute(ConstValues::A_HEIGHT.c_str());
+
+		textData.face = textXML.Attribute(ConstValues::A_FACE.c_str());
+		textData.text = textXML.Attribute(ConstValues::A_TEXT.c_str());
+
+		textData.alignH = getAlignHType(textXML.Attribute(ConstValues::A_ALIGN_H.c_str()));
+		textData.alignV = getAlignVType(textXML.Attribute(ConstValues::A_ALIGN_V.c_str()));*/
+	},
+	
+	getBoolean:function(data, key, defaultValue){
+		if(data && key in data){
+			switch(String(data[key])){
+			case "0":
+			case "NaN":
+			case "":
+			case "false":
+			case "null":
+			case "undefined":
+				return false;
+
+			case "1":
+			case "true":
+			default:
+				return true;
+			}
+		}
+		return defaultValue;	
+	},
+
+	getNumber:function(data, key, defaultValue, nanValue){
+		if(nanValue === undefined){ nanValue = NaN; }
+		if(data && key in data){
+			switch(String(data[key])){
+			case "NaN":
+			case "":
+			case "false":
+			case "null":
+			case "undefined":
+				return nanValue;
+			default:
+				return Number(data[key]);
+			}
+		}
+		return defaultValue;
+	}
+});
+/*----------------------------------------------------------------------parsers部分---------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------textures部分---------------------------------------------------------------*/
+dragonBones.TextureAtlasData = cc.Class.extend({
+	autoSearch:false,
+	name:null,
+	imagePath:null,
+	textureDataList:null,
+	
+	ctor:function(){
+		this.textureDataList = [];
+	},
+	
+	dispose:function()
+	{
+		for (var i = 0, l = this.textureDataList.length; i < l; ++i)
+		{
+			this.textureDataList[i].dispose();
+		}
+
+		this.textureDataList.length = 0;
+	},
+
+	getTextureData:function(textureName){
+		for (var i = 0, l = this.textureDataList.length; i < l; ++i){
+			if (this.textureDataList[i].name == textureName){
+				return this.textureDataList[i];
+			}
+		}
+		return null;
+	}
+});
+
+dragonBones.TextureData = cc.Class.extend({
+	rotated:false,
+	name:null,
+	region:null,
+	frame:null,
+	
+	ctor:function(){
+		this.region = new dragonBones.Rectangle();
+	},
+	
+	dispose:function(){
+		this.name = null;
+		this.region = null;
+		this.frame = null;
+	}
+});
 /*----------------------------------------------------------------------textures部分---------------------------------------------------------------*/
 
 
