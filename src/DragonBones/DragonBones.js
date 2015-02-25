@@ -7,6 +7,36 @@ dragonBones.AUTO_TWEEN_EASING = 10;
 dragonBones.NO_TWEEN_EASING = 20;
 dragonBones.USE_FRAME_TWEEN_EASING = 30;
 
+dragonBones.BlendMode = {
+		BM_ADD:0,
+		BM_ALPHA:1,
+		BM_DARKEN:2,
+		BM_DIFFERENCE:3,
+		BM_ERASE:4,
+		BM_HARDLIGHT:5,
+		BM_INVERT:6,
+		BM_LAYER:7,
+		BM_LIGHTEN:8,
+		BM_MULTIPLY:9,
+		BM_NORMAL:10,
+		BM_OVERLAY:11,
+		BM_SCREEN:12,
+		BM_SHADER:13,
+		BM_SUBTRACT:14
+};
+
+dragonBones.DisplayType = {
+		DT_IMAGE:0,
+		DT_ARMATURE:1,
+		DT_FRAME:2,
+		DT_TEXT:3,
+		DT_1:4,
+		DT_2:5,
+		DT_3:6,
+		DT_4:7,
+		DT_5:8
+};
+
 dragonBones.AnimationFadeOutMode = {
 		NONE:0,
 		SAME_LAYER:1,
@@ -2536,7 +2566,7 @@ dragonBones.Bone = dragonBones.Object.extend({
 				DBSoundEventDispatcher.dispatchEvent(eventData);
 			}
 
-			if (frame.action){
+			if(frame.action){
 				var len = this._slotList.length;
 				for (var j = 0; j < len; ++j){
 					if (this._slotList[j]._childArmature){
@@ -2649,6 +2679,341 @@ dragonBones.Bone = dragonBones.Object.extend({
 dragonBones.Bone.sortState = function(a, b){
 	return a._animationState.getLayer() < b._animationState.getLayer() ? -1 : 1;
 };
+
+dragonBones.Slot = dragonBones.Object.extend({
+	_isShowDisplay:false,
+	_displayIndex:0,
+	_originZOrder:0,
+	_tweenZOrder:0,
+	_offsetZOrder:0,
+	_blendMode:null,
+	
+	_colorTransform:null,
+
+	_displayList:null,
+
+	_slotData:null,
+	_display:null,
+	_childArmature:null,
+	
+	ctor:function(slotData){
+		dragonBones.Object.prototype.ctor.call(this);
+		
+		this._displayIndex = -1;
+		this._blendMode = dragonBones.BlendMode.BM_NORMAL;
+		
+		this._slotData = slotData;
+		this._childArmature = null;
+		this._display = null;
+		this.inheritRotation = true;
+		this.inheritScale = true;
+		
+		this._displayList = [];
+		this._colorTransform = new dragonBones.ColorTransform();
+	},
+	
+	dispose:function()
+	{
+		dragonBones.Object.prototype.dispose.call(this);
+		this._displayList.length = 0;
+		this._slotData = null;
+		this._childArmature = null;
+		this._display = null;
+	},
+	
+	getBoundingBox:function(){},
+	
+	getDisplayIndex:function(){
+		return this._displayIndex;
+	},
+	
+	isShowDisplay:function(){ 
+		return this._isShowDisplay;
+	},
+	
+	getSlotData:function(){
+		return this._slotData;
+	},
+
+	getZOrder:function(){
+		return this._originZOrder + this._tweenZOrder + this._offsetZOrder;
+	},
+	
+	setZOrder:function(zorder){
+		if (this.getZOrder() != zorder){
+			this._offsetZOrder = zorder - this._originZOrder - this._tweenZOrder;
+
+			if(this._armature){
+				this._armature._slotsZOrderChanged = true;
+			}
+		}
+	},
+	
+	getDisplay:function(){
+		return this._display;
+	},
+	
+	setDisplay:function(display, displayType, disposeExisting){
+		if(displayType === undefined){ displayType = dragonBones.DisplayType.DT_IMAGE; }
+		if(disposeExisting === undefined){ disposeExisting = true; }
+		
+		if (this._displayIndex < 0){
+			this._isShowDisplay = true;
+			this._displayIndex = 0;
+		}
+		
+		if (this._displayList[this._displayIndex] == display){
+			return;
+		}
+
+		this._displayList[this._displayIndex] = display;
+		this.updateSlotDisplay(disposeExisting);
+	},
+	
+	getChildArmature:function(){
+		return this._childArmature;
+	},
+	
+	setChildArmature:function(childArmature, disposeExisting){
+		if(disposeExisting === undefined){ disposeExisting = true; }
+		this.setDisplay(childArmature, dragonBones.DisplayType.DT_ARMATURE, disposeExisting);
+	},
+	
+	getDisplayList:function(){
+		return this._displayList;
+	},
+	
+	setDisplayList:function(displayList, disposeExisting){
+		if(disposeExisting === undefined){ disposeExisting = true; }
+		
+		if (this._displayIndex < 0){
+			_isShowDisplay = true;
+			_displayIndex = 0;
+		}
+
+		if (disposeExisting){
+			this.disposeDisplayList();
+			this._childArmature = null;
+			this._display = null;
+		}
+
+		// copy
+		this._displayList = displayList;
+		var displayIndexBackup = this._displayIndex;
+		this._displayIndex = -1;
+		this.changeDisplay(displayIndexBackup);
+	},
+
+	setVisible:function(vislble){
+		if (this._visible != visible){
+			this._visible = visible;
+			this.updateDisplayVisible(this._visible);
+		}
+	},
+	
+	update:function(){
+		if(this._parent._needUpdate <= 0){
+			return;
+		}
+
+		var x = this.origin.x + this.offset.x + this._parent._tweenPivot.x;
+		var y = this.origin.y + this.offset.y + this._parent._tweenPivot.y;
+		parentMatrix = this._parent.globalTransformMatrix;
+		this.globalTransformMatrix.tx = this.global.x = parentMatrix.a * x + parentMatrix.c * y + parentMatrix.tx;
+		this.globalTransformMatrix.ty = this.global.y = parentMatrix.d * y + parentMatrix.b * x + parentMatrix.ty;
+		//globalTransformMatrix.tx = global.x = parentMatrix.a * x * _parent.global.scaleX + parentMatrix.c * y * _parent.global.scaleY + parentMatrix.tx;
+		//globalTransformMatrix.ty = global.y = parentMatrix.d * y * _parent.global.scaleY + parentMatrix.b * x * _parent.global.scaleX + parentMatrix.ty;
+
+		if (this.inheritRotation)
+		{
+			this.global.skewX = this.origin.skewX + this.offset.skewX + this._parent.global.skewX;
+			this.global.skewY = this.origin.skewY + this.offset.skewY + this._parent.global.skewY;
+		}
+		else
+		{
+			this.global.skewX = this.origin.skewX + this.offset.skewX;
+			this.global.skewY = this.origin.skewY + this.offset.skewY;
+		}
+
+		if (this.inheritScale)
+		{
+			this.global.scaleX = this.origin.scaleX * this.offset.scaleX * this._parent.global.scaleX;
+			this.global.scaleY = this.origin.scaleY * this.offset.scaleY * this._parent.global.scaleY;
+		}
+		else
+		{
+			this.global.scaleX = this.origin.scaleX * this.offset.scaleX;
+			this.global.scaleY = this.origin.scaleY * this.offset.scaleY;
+		}
+
+		this.globalTransformMatrix.a = this.global.scaleX * Math.cos(this.global.skewY);
+		this.globalTransformMatrix.b = this.global.scaleX * Math.sin(this.global.skewY);
+		this.globalTransformMatrix.c = -this.global.scaleY * Math.sin(this.global.skewX);
+		this.globalTransformMatrix.d = this.global.scaleY * Math.cos(this.global.skewX);
+		this.updateDisplayTransform();
+	},
+	
+	changeDisplay:function(displayIndex){
+		if (displayIndex < 0){
+			if (this._isShowDisplay){
+				this._isShowDisplay = false;
+				this.removeDisplayFromContainer();
+				this.updateChildArmatureAnimation();
+			}
+		}else if (this._displayList.length > 0){
+			if (displayIndex >= this._displayList.length){
+				displayIndex = this._displayList.length - 1;
+			}
+
+			if (this._displayIndex != displayIndex){
+				this._isShowDisplay = true;
+				this._displayIndex = displayIndex;
+				this.updateSlotDisplay(false);
+
+				if (
+						this._slotData &&
+						this._slotData.displayDataList.length > 0 &&
+						this._displayIndex < this._slotData.displayDataList.length
+				){
+					this.origin = this._slotData.displayDataList[this._displayIndex].transform;
+				}
+			}else if (!this._isShowDisplay){
+				this._isShowDisplay = true;
+
+				if(this._armature){
+					this._armature._slotsZOrderChanged = true;
+					this.addDisplayToContainer(this._armature._display, -1);
+				}
+
+				this.updateChildArmatureAnimation();
+			}
+		}
+	},
+	updateSlotDisplay:function(disposeExisting){
+		var currentDisplayIndex = -1;
+
+		if (this._display){
+			currentDisplayIndex = this.getDisplayZIndex();
+			this.removeDisplayFromContainer();
+		}
+
+		if (disposeExisting){
+			if (this._childArmature){
+				this._childArmature.dispose();
+				this._childArmature = null;
+			}else if (this._display){
+				this.disposeDisplay();
+				this._display = null;
+			}
+		}
+		this.stopChildArmatureAnimation();
+		
+		var display = this._displayList[this._displayIndex];
+
+		if (display){
+			if (display instanceof dragonBones.Armature){
+				this._childArmature = display;
+				this._display = this._childArmature._display;
+			}else{
+				this._childArmature = null;
+				this._display = display;
+			}
+		}else{
+			this._display = nullptr;
+			this._childArmature = nullptr;
+		}
+		
+		this.playChildArmatureAnimation();
+		this.updateDisplay(this._display);
+		
+		if (this._display){
+			if (this._armature && this._isShowDisplay)
+			{
+				if (currentDisplayIndex < 0){
+					this._armature._slotsZOrderChanged = true;
+					this.addDisplayToContainer(this._armature._display, currentDisplayIndex);
+				}else{
+					this.addDisplayToContainer(this._armature._display, currentDisplayIndex);
+				}
+			}
+
+			if(this._blendMode != dragonBones.BlendMode.BM_NORMAL){
+				this.updateDisplayBlendMode(this._blendMode);
+			}else if (this._slotData){
+				this.updateDisplayBlendMode(this._slotData.blendMode);
+			}
+
+			this.updateDisplayColor(
+					this._colorTransform.alphaOffset, this._colorTransform.redOffset, this._colorTransform.greenOffset, this._colorTransform.blueOffset,
+					this._colorTransform.alphaMultiplier, this._colorTransform.redMultiplier, this._colorTransform.greenMultiplier, this._colorTransform.blueMultiplier
+			);
+			this.updateDisplayVisible(this._visible);
+			this.updateDisplayTransform();
+		}
+	},
+
+	updateDisplayColor:function(aOffset, rOffset, gOffset, bOffset, aMultiplier, rMultiplier, gMultiplier, bMultiplier){
+		this._colorTransform.alphaOffset = aOffset;
+		this._colorTransform.redOffset = rOffset;
+		this._colorTransform.greenOffset = gOffset;
+		this._colorTransform.blueOffset = bOffset;
+		this._colorTransform.alphaMultiplier = aMultiplier;
+		this._colorTransform.redMultiplier = rMultiplier;
+		this._colorTransform.greenMultiplier = gMultiplier;
+		this._colorTransform.blueMultiplier = bMultiplier;
+	},
+	
+	updateChildArmatureAnimation:function(){
+		if (this._isShowDisplay){
+			this.playChildArmatureAnimation();
+		}else{
+			this.stopChildArmatureAnimation();
+		}
+	},
+	
+	playChildArmatureAnimation:function(){
+		if (this._childArmature && this._childArmature._isInheritAnimation)
+		{
+			if(
+					this._armature &&
+					this._armature._animation._lastAnimationState &&
+					this._childArmature._animation.hasAnimation(_armature._animation._lastAnimationState.name)
+			){
+				this._childArmature._animation.gotoAndPlay(this._armature._animation._lastAnimationState.name);
+			}else{
+				this._childArmature._animation.play();
+			}
+		}
+	},
+	
+	stopChildArmatureAnimation:function(){
+		if (this._childArmature){
+			this._childArmature._animation.stop();
+			this._childArmature._animation._lastAnimationState = null;
+		}
+	},
+
+	getDisplayZIndex:function(){},
+	addDisplayToContainer:function(container, zIndex){},
+	removeDisplayFromContainer:function(){},
+	disposeDisplay:function(){},
+	disposeDisplayList:function(){},
+	updateDisplay:function(display){},
+	updateDisplayBlendMode:function(blendMode){},
+	updateDisplayVisible:function(visible){},
+	updateDisplayTransform:function(){},
+	
+	/** @protected */
+	setArmature:function(armature){
+		dragonBones.Object.prototype.setArmature.call(this, armature);
+		if (this._armature){
+			this._armature._slotsZOrderChanged = true;
+			this.addDisplayToContainer(this._armature._display, -1);
+		}else{
+			this.removeDisplayFromContainer();
+		}
+	},
+});
 
 /*----------------------------------------------------------------------core部分---------------------------------------------------------------*/
 
@@ -3139,8 +3504,6 @@ dragonBones.DisplayData = cc.Class.extend({
 		this.pivot = null;
 	}
 });
-dragonBones.DisplayData.ARMATURE = "armature";
-dragonBones.DisplayData.IMAGE = "image";
 
 
 dragonBones.DragonBonesData = cc.Class.extend({
