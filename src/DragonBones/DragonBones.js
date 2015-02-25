@@ -7,6 +7,12 @@ dragonBones.AUTO_TWEEN_EASING = 10;
 dragonBones.NO_TWEEN_EASING = 20;
 dragonBones.USE_FRAME_TWEEN_EASING = 30;
 
+dragonBones.AutoSearchType = {
+		AST_ALL:0,
+		AST_AUTO:1,
+		AST_NONE:2
+},
+
 dragonBones.BlendMode = {
 		BM_ADD:0,
 		BM_ALPHA:1,
@@ -3136,6 +3142,404 @@ dragonBones.EventData.clearObjects = function(){
 };
 /*----------------------------------------------------------------------event部分---------------------------------------------------------------*/
 
+/*----------------------------------------------------------------------factories部分---------------------------------------------------------------*/
+dragonBones.BaseFactory = cc.Class.extend({
+	autoSearchDragonBonesData:false,
+	autoSearchTexture:false,
+	
+	_dragonBonesDataMap:null,
+	_textureAtlasMap:null,
+	
+	_currentDragonBonesDataName:null,
+	_currentTextureAtlasName:null,
+	
+	ctor:function(){
+		this._dragonBonesDataMap = {};
+		this._textureAtlasMap = {};
+	},
+	
+	dispose:function(disposeData){
+		if(disposeData === undefined){ disposeData = true; }
+		
+		if (disposeData){
+			var key;
+			for(key in this._dragonBonesDataMap){
+				this._dragonBonesDataMap[key].dispose();
+			}
+
+			for(key in this._textureAtlasMap){
+				this._textureAtlasMap[key].dispose();
+			}
+		}
+
+		this._dragonBonesDataMap = null;
+		this._textureAtlasMap = null;
+	},
+	
+	getDragonBonesDataMap:function(){
+		return this._dragonBonesDataMap;
+	},
+	
+	getTextureAtlasMap:function(){
+		return this._textureAtlasMap;
+	},
+	
+	getDragonBonesData:function(name){
+		return this._dragonBonesDataMap[name];
+	},
+	
+	addDragonBonesData:function(data, name){
+		if(name === undefined){ name = null; }
+		
+		if(!data){
+			throw new Error();
+		}
+		
+		name = name || data.name;
+		if(!name){
+			throw new Error("Unnamed data!");
+		}
+		
+		if(this._dragonBonesDataMap[name]){
+			throw new Error();
+		}
+		
+		this._dragonBonesDataMap[name] = data;
+	},
+	
+	removeDragonBonesData:function(name, disposeData){
+		if(disposeData === undefined){ disposeData = true; }
+		
+		var data = this._dragonBonesDataMap[name];
+		if(data){
+			if(disposeData){
+				data.dispose();
+			}
+			delete this._dragonBonesDataMap[name];
+			data = null;
+		}
+	},
+	
+	getTextureAtlas:function(name){
+		return this._textureAtlasMap[name];
+	},
+	
+	addTextureAtlas:function(textureAtlas, name){
+		if(name === undefined){ name = ""; }
+
+		var key = name == "" ? textureAtlas.textureAtlasData.name : name;
+		
+		if(!key){
+			throw new Error();
+		}
+		
+		if(this._textureAtlasMap[key]){
+			throw new Error();
+		}
+
+		this._textureAtlasMap[key] = textureAtlas;
+	},
+	
+	removeTextureAtlas:function(name, disposeData){
+		if(disposeData === undefined){ disposeData = true; }
+		
+		var data = this._textureAtlasMap[name];
+		if(data){
+			if(disposeData){
+				data.dispose();
+			}
+			delete this._textureAtlasMap[name];
+			data = null;
+		}
+	},
+	
+	buildArmature:function(armatureName, skinName, animationName, dragonBonesName, textureAtlasName){
+		if(skinName === undefined){ skinName = null; }
+		if(animationName === undefined){ animationName = null; }
+		if(dragonBonesName === undefined){ dragonBonesName = null; }
+		if(textureAtlasName === undefined){ textureAtlasName = null; }
+		
+		
+		var dragonBonesData = null;
+		var armatureData = null;
+		var animationArmatureData = null;
+		var skinData = null;
+		var skinDataCopy = null;
+		var key;
+		
+		if(dragonBonesName){
+			dragonBonesData = this._dragonBonesDataMap[dragonBonesName];
+			if(data){
+				armatureData = dragonBonesData.getArmatureData(armatureName);
+				this._currentDragonBonesDataName = dragonBonesName;
+				this._currentTextureAtlasName = textureAtlasName == null ? this._currentDragonBonesDataName : textureAtlasName;
+			}
+		}
+		
+		if (!armatureData){
+			var searchType = (dragonBonesName == null ? dragonBones.AutoSearchType.AST_ALL : (this.autoSearchDragonBonesData ? dragonBones.AutoSearchType.AST_AUTO : dragonBones.AutoSearchType.AST_NONE));
+
+			if (searchType != dragonBones.AutoSearchType.AST_NONE)
+			{
+				for(key in this._dragonBonesDataMap){
+					dragonBonesData = this._dragonBonesDataMapp[key];
+					if (searchType == dragonBones.AutoSearchType.AST_ALL || dragonBonesData.autoSearch){
+						armatureData = dragonBonesData.getArmatureData(armatureName);
+
+						if(armatureData){
+							this._currentDragonBonesDataName = key;
+							this._currentTextureAtlasName = this._currentDragonBonesDataName;
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		if (!armatureData){
+			return null;
+		}
+		
+		if(animationName && animationName != armatureName){
+			animationArmatureData = dragonBonesData.getArmatureData(animationName);
+			if (!animationArmatureData)
+			{
+				for(key in this._dragonBonesDataMap){
+					dragonBonesData = this._dragonBonesDataMap[key];
+					animationArmatureData = dragonBonesData.getArmatureData(animationName);
+					if (animationArmatureData){
+						break;
+					}
+				}
+			}
+
+			if(animationArmatureData){
+				skinDataCopy = animationArmatureData.getSkinData("");
+			}
+		}
+		
+		skinData = armatureData.getSkinData(skinName);
+		var armature = this.generateArmature(armatureData);
+		armature.name = armatureName;
+
+		if (animationArmatureData){
+			armature.getAnimation().setAnimationDataList(animationArmatureData.animationDataList);
+		}else{
+			armature.getAnimation().setAnimationDataList(armatureData.animationDataList);
+		}
+		
+		this.buildBones(armature, armatureData);
+
+		if (skinData){
+			this.buildSlots(armature, armatureData, skinData, skinDataCopy);
+		}
+
+		// update armature pose
+		armature.getAnimation().play();
+		armature.advanceTime(0);
+		armature.getAnimation().stop();
+		
+		return armature;
+	},
+	
+	getTextureDisplay:function(textureName, textureAtlasName, displayData){
+		if(textureAtlasName === undefined){ textureAtlasName = null; }
+		if(displayData === undefined){ displayData = null; }
+		
+		var textureAtlas = null;
+		var textureData = null;
+		var key;
+		
+		if (textureAtlasName)
+		{
+			textureAtlas = this._textureAtlasMap[textureAtlasName];
+			if (textureAtlas){
+				textureData = textureAtlas.textureAtlasData.getTextureData(textureName);
+			}
+		}
+		
+		if (!textureData){
+			var searchType = (textureAtlasName == null ? dragonBones.AutoSearchType.AST_ALL : (autoSearchTexture ? dragonBones.AutoSearchType.AST_AUTO : dragonBones.AutoSearchType.AST_NONE));
+
+			if (searchType != dragonBones.AutoSearchType.AST_NONE){
+				for(key in this._textureAtlasMap){
+					textureAtlas = this._textureAtlasMap[key];
+					
+					if (searchType == dragonBones.AutoSearchType.AST_ALL || textureAtlas.textureAtlasData.autoSearch){
+						textureData = textureAtlas.textureAtlasData.getTextureData(textureName);
+						if (textureData){
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		if (!textureData){
+			return null;
+		}
+		
+		if(!displayData)
+		{
+			var data = this._dragonBonesDataMap[textureAtlas.textureAtlasData.name];
+			if (data)
+			{
+				var dragonBonesData = data;
+
+				for (var i = 0, l1 = dragonBonesData.armatureDataList.length; i < l1; ++i)
+				{
+					for (var j = 0, l2 = dragonBonesData.armatureDataList[i].skinDataList.length; j < l2; ++j)
+					{
+						for (var k = 0, l3 = dragonBonesData.armatureDataList[i].skinDataList[j].slotDataList.length; k < l3; ++k)
+						{
+							for (var m = 0, l4 = dragonBonesData.armatureDataList[i].skinDataList[j].slotDataList[k].displayDataList.length; m < l4; ++m)
+							{
+								displayData = dragonBonesData.armatureDataList[i].skinDataList[j].slotDataList[k].displayDataList[m];
+
+								if (displayData.name != textureName)
+								{
+									displayData = nullptr;
+								}
+								else
+								{
+									break;
+								}
+							}
+
+							if (displayData)
+							{
+								break;
+							}
+						}
+
+						if (displayData)
+						{
+							break;
+						}
+					}
+
+					if (displayData)
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		return this.generateDisplay(textureAtlas, textureData, displayData);
+	},
+	
+	buildBones:function(armature, armatureData){
+		var boneData;
+		var bone;
+		for (var i = 0, l = armatureData.boneDataList.length; i < l; ++i)
+		{
+			boneData = armatureData.boneDataList[i];
+			bone = new dragonBones.Bone();
+			bone.name = boneData.name;
+			bone.inheritRotation = boneData.inheritRotation;
+			bone.inheritScale = boneData.inheritScale;
+			// copy
+			bone.origin = boneData.transform;
+
+			if (armatureData.getBoneData(boneData.parent)){
+				armature.addBone(bone, boneData.parent);
+			}else{
+				armature.addBone(bone);
+			}
+		}
+	},
+	
+	buildSlots:function(armature, armatureData, skinData, skinDataCopy){
+		var slotData;
+		var bone;
+		var slot;
+		var displayList;
+		var frameDisplay;
+		
+		for (var i = 0, l1 = skinData.slotDataList.length; i < l1; ++i){
+			slotData = skinData.slotDataList[i];
+			bone = armature.getBone(slotData.parent);
+
+			if (!bone){
+				continue;
+			}
+
+			slot = this.generateSlot(slotData);
+			slot.name = slotData.name;
+			slot._originZOrder = slotData.zOrder;
+			slot._slotData = slotData;
+			
+			displayList = [];
+			frameDisplay = null;
+
+			for (var j = 0, l2 = slotData.displayDataList.size(); j < l2; ++j)
+			{
+				var displayData = slotData.displayDataList[j];
+
+				switch (displayData.type)
+				{
+				case dragonBones.DisplayType.DT_ARMATURE:
+				{
+					var displayDataCopy = null;
+
+					if (skinDataCopy){
+						var slotDataCopy = skinDataCopy.getSlotData(slotData.name);
+						if (slotDataCopy){
+							displayDataCopy = slotDataCopy.displayDataList[i];
+						}
+					}
+					
+					var currentDragonBonesDataName = this._currentDragonBonesDataName;
+					var currentTextureAtlasName = this._currentTextureAtlasName;
+					var childArmature = this.buildArmature(displayData.name, "", displayDataCopy ? displayDataCopy.name : "", currentDragonBonesDataName, currentTextureAtlasName);
+					displayList.push(childArmature);
+					this._currentDragonBonesDataName = currentDragonBonesDataName;
+					this._currentTextureAtlasName = currentTextureAtlasName;
+					break;
+				}
+
+				case dragonBones.DisplayType.DT_IMAGE:
+				{
+					var display = this.getTextureDisplay(displayData.name, this._currentTextureAtlasName, displayData);
+					displayList.push(display);
+					break;
+				}
+
+				/*
+	                case dragonBones.DisplayType.DT_FRAME:
+	                {
+	                    break;
+	                }
+
+	                case dragonBones.DisplayType.DT_TEXT:
+	                {
+	                    break;
+	                }
+				 */
+
+				default:
+					displayList.push(null);
+					break;
+				}
+			}
+
+			bone.addChild(slot);
+
+			if (displayList.length > 0){
+				slot.setDisplayList(displayList, false);
+			}
+		}
+	},
+
+	generateArmature:function(armatureData){},
+	generateSlot:function(slotData){},
+	generateDisplay:function(textureAtlas, textureData, displayData){}
+	
+});
+
+/*----------------------------------------------------------------------factories部分---------------------------------------------------------------*/
+
 
 /*----------------------------------------------------------------------geoms部分---------------------------------------------------------------*/
 dragonBones.ColorTransform = cc.Class.extend({
@@ -3696,6 +4100,10 @@ dragonBones.TransformTimeline = dragonBones.Timeline.extend({
 	}
 });
 /*----------------------------------------------------------------------objects部分---------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------textures部分---------------------------------------------------------------*/
+/*----------------------------------------------------------------------textures部分---------------------------------------------------------------*/
+
 
 /*----------------------------------------------------------------------utils部分---------------------------------------------------------------*/
 dragonBones.utils = dragonBones.utils || {};
