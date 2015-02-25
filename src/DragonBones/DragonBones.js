@@ -2508,59 +2508,146 @@ dragonBones.Bone = dragonBones.Object.extend({
 				slot.updateDisplayVisible(frame.visible);
 
 				if (displayIndex >= 0){
-					if (frame.zOrder != slot._tweenZOrder){
+					if (!isNaN(frame.zOrder) && frame.zOrder != slot._tweenZOrder){
 						slot._tweenZOrder = frame.zOrder;
-						_armature._slotsZOrderChanged = true;
+						this._armature._slotsZOrderChanged = true;
 					}
 				}
 			}
 
-//			var eventData;
-//			if (frame.event && this._armature._eventDispatcher.hasEvent(dragonBones.EventType.BONE_FRAME_EVENT)){
-//				eventData = EventData::borrowObject(EventData::EventType::BONE_FRAME_EVENT);
-//				eventData->armature = _armature;
-//				eventData->bone = this;
-//				eventData->animationState = animationState;
-//				eventData->frameLabel = frame->event;
-//				eventData->frame = frame;
-//				_armature->_eventDataList.push_back(eventData);
-//			}
-//
-//			if (!frame->sound.empty() && Armature::soundEventDispatcher && Armature::soundEventDispatcher->hasEvent(EventData::EventType::SOUND))
-//			{
-//				EventData *eventData = EventData::borrowObject(EventData::EventType::SOUND);
-//				eventData->armature = _armature;
-//				eventData->bone = this;
-//				eventData->animationState = animationState;
-//				eventData->sound = frame->sound;
-//				Armature::soundEventDispatcher->dispatchEvent(eventData);
-//			}
-//
-//			if (!frame->action.empty())
-//			{
-//				for (size_t i = 0, l = _slotList.size(); i < l; ++i)
-//				{
-//					if (_slotList[i]->_childArmature)
-//					{
-//						_slotList[i]->_childArmature->_animation->gotoAndPlay(frame->action);
-//					}
-//				}
-//			}
+			var eventData;
+			if (frame.event && this._armature._eventDispatcher.hasEvent(dragonBones.EventType.BONE_FRAME_EVENT)){
+				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.BONE_FRAME_EVENT);
+				eventData.armature = this._armature;
+				eventData.bone = this;
+				eventData.animationState = animationState;
+				eventData.frameLabel = frame.event;
+				eventData.frame = frame;
+				this._armature._eventDataList.push_back(eventData);
+			}
+
+			if (frame.sound && DBSoundEventDispatcher && DBSoundEventDispatcher.hasEvent(dragonBones.EventType.SOUND))
+			{
+				eventData = dragonBones.EventData.borrowObject(EventData.EventType.SOUND);
+				eventData.armature = this._armature;
+				eventData.bone = this;
+				eventData.animationState = animationState;
+				eventData.sound = frame.sound;
+				DBSoundEventDispatcher.dispatchEvent(eventData);
+			}
+
+			if (frame.action){
+				var len = this._slotList.length;
+				for (var j = 0; j < len; ++j){
+					if (this._slotList[j]._childArmature){
+						this._slotList[j]._childArmature._animation.gotoAndPlay(frame.action);
+					}
+				}
+			}
 		}
 	},
 	
 	/** @protected */
-	addState:function(timelineState){},
+	addState:function(timelineState){
+		if(this._timelineStateList.indexOf(timelineState) < 0){
+			this._timelineStateList.push(timelineState);
+			this._timelineStateList.sort(dragonBones.Bone.sortState);
+		}
+	},
 	
 	/** @protected */
-	removeState:function(timelineState){},
+	removeState:function(timelineState){
+		var index = this._timelineStateList.indexOf(timelineState);
+		if(index >= 0){
+			this._timelineStateList.splice(index, 1);
+		}
+	},
 	
 	/** @protected */
-	blendingTimeline:function(){},
+	blendingTimeline:function(){
+		var i = this._timelineStateList.length;
+		var timelineState;
+		var transform;
+		var pivot;
+		var weight;
+
+		if(i == 1){
+			timelineState = this._timelineStateList[0];
+			transform = timelineState._transform;
+			pivot = timelineState._pivot;
+			timelineState._weight = timelineState._animationState.getCurrentWeight();
+			weight = timelineState._weight;
+			this._tween.x = transform.x * weight;
+			this._tween.y = transform.y * weight;
+			this._tween.skewX = transform.skewX * weight;
+			this._tween.skewY = transform.skewY * weight;
+			this._tween.scaleX = transform.scaleX * weight;
+			this._tween.scaleY = transform.scaleY * weight;
+			this._tweenPivot.x = pivot.x * weight;
+			this._tweenPivot.y = pivot.y * weight;
+		}else if (i > 1){
+			var prevLayer = _timelineStateList[i - 1]._animationState.getLayer();
+			var currentLayer = 0;
+			var weigthLeft = 1;
+			var layerTotalWeight = 0;
+			var x = 0;
+			var y = 0;
+			var skewX = 0;
+			var skewY = 0;
+			var scaleX = 0;
+			var scaleY = 0;
+			var pivotX = 0;
+			var pivotY = 0;
+
+			while (i--)
+			{
+				timelineState = _timelineStateList[i];
+				currentLayer = timelineState._animationState.getLayer();
+
+				if (prevLayer != currentLayer){
+					if (layerTotalWeight >= weigthLeft){
+						timelineState._weight = 0;
+						break;
+					}else{
+						weigthLeft -= layerTotalWeight;
+					}
+				}
+
+				prevLayer = currentLayer;
+				timelineState._weight = timelineState._animationState.getCurrentWeight() * weigthLeft;
+				weight = timelineState._weight;
+
+				//timelineState
+				if (weight && timelineState._blendEnabled)
+				{
+					transform = timelineState._transform;
+					pivot = timelineState._pivot;
+					x += transform.x * weight;
+					y += transform.y * weight;
+					skewX += transform.skewX * weight;
+					skewY += transform.skewY * weight;
+					scaleX += transform.scaleX * weight;
+					scaleY += transform.scaleY * weight;
+					pivotX += pivot.x * weight;
+					pivotY += pivot.y * weight;
+					layerTotalWeight += weight;
+				}
+			}
+
+			this._tween.x = x;
+			this._tween.y = y;
+			this._tween.skewX = skewX;
+			this._tween.skewY = skewY;
+			this._tween.scaleX = scaleX;
+			this._tween.scaleY = scaleY;
+			this._tweenPivot.x = pivotX;
+			this._tweenPivot.y = pivotY;
+		}
+	},
 });
 
 dragonBones.Bone.sortState = function(a, b){
-	return a._animationState.getLayer() < b._animationState.getLayer();
+	return a._animationState.getLayer() < b._animationState.getLayer() ? -1 : 1;
 };
 
 /*----------------------------------------------------------------------core部分---------------------------------------------------------------*/
