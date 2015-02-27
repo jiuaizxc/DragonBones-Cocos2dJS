@@ -862,7 +862,7 @@ dragonBones.AnimationState = cc.Class.extend({
 		if (isNaN(timeScale) || timeScale == Infinity || timeScale === undefined){
 			timeScale = 1;
 		}
-		_timeScale = timeScale;
+		this._timeScale = timeScale;
 		return this;
 	},
 
@@ -1288,7 +1288,7 @@ dragonBones.AnimationState = cc.Class.extend({
 		if(completeFlg){
 			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.COMPLETE)){
 				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.COMPLETE);
-				eventData.armature = _armature;
+				eventData.armature = this._armature;
 				eventData.animationState = this;
 				this._armature._eventDataList.push(eventData);
 			}
@@ -1299,7 +1299,7 @@ dragonBones.AnimationState = cc.Class.extend({
 		}else if (loopCompleteFlg){
 			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.LOOP_COMPLETE)){
 				eventData = dragonBones.EventData.borrowObject(dragonBones.EventType.LOOP_COMPLETE);
-				eventData.armature = _armature;
+				eventData.armature = this._armature;
 				eventData.animationState = this;
 				this._armature._eventDataList.push(eventData);
 			}
@@ -2441,7 +2441,7 @@ dragonBones.Object = cc.Class.extend({
 		this.global = new dragonBones.Transform();
 		this.origin = new dragonBones.Transform();
 		this.offset = new dragonBones.Transform();
-		this.offset.scaleX = this.offset.scaleY = 0;
+		this.offset.scaleX = this.offset.scaleY = 1;
 
 		this.globalTransformMatrix = new dragonBones.Matrix();
 		this._visible = true;
@@ -4385,7 +4385,7 @@ dragonBones.BaseDataParser.transformAnimationData = function(animationData, arma
 
 		for (var k = 0, l1 = timeline.frameList.length; k < l1; ++k)
 		{
-			frame = timeline.frameList[i];
+			frame = timeline.frameList[k];
 			dragonBones.BaseDataParser.setFrameTransform(animationData, armatureData, boneData, frame);
 			frame.transform.x -= boneData.transform.x;
 			frame.transform.y -= boneData.transform.y;
@@ -4399,13 +4399,16 @@ dragonBones.BaseDataParser.transformAnimationData = function(animationData, arma
 			}
 
 			if (!originTransform){
-				originTransform = timeline.originTransform;//可能存在问题
-				originTransform.copy(frame.transform);
+				// copy
+				timeline.originTransform.copy(frame.transform);
+				originTransform = timeline.originTransform;
 				originTransform.skewX = DBUtils.TransformUtil.formatRadian(originTransform.skewX);
 				originTransform.skewY = DBUtils.TransformUtil.formatRadian(originTransform.skewY);
+				
+				// copy
+				timeline.originPivot.x = frame.pivot.x;
+				timeline.originPivot.y = frame.pivot.y;
 				originPivot = timeline.originPivot;
-				originPivot.x = frame.pivot.x;
-				originPivot.y = frame.pivot.y;
 			}
 
 			frame.transform.x -= originTransform.x;
@@ -4698,7 +4701,7 @@ dragonBones.ObjectDataParser = dragonBones.BaseDataParser.extend({
 		if (transformXML){
 			this.parseTransform(transformXML, boneData.global);
 		}
-		boneData.transform = boneData.global;
+		boneData.transform.copy(boneData.global);
 
 		//不解析碰撞数据
 		/*for (const XMLElement *rectangleXML = boneXML.FirstChildElement(DBConstValues.RECTANGLE); rectangleXML; rectangleXML = rectangleXML.NextSiblingElement(DBConstValues.RECTANGLE))
@@ -4863,7 +4866,7 @@ dragonBones.ObjectDataParser = dragonBones.BaseDataParser.extend({
 		}
 
 		// copy
-		frame.transform = frame.global;
+		frame.transform.copy(frame.global);
 		frame.scaleOffset.x = this.getNumber(frameXML, DBConstValues.A_SCALE_X_OFFSET, 0, 0);
 		frame.scaleOffset.y = this.getNumber(frameXML, DBConstValues.A_SCALE_Y_OFFSET, 0, 0);
 
@@ -5642,12 +5645,11 @@ dragonBones.DBCCSlot = dragonBones.Slot.extend({
 	},
 	
 	updateDisplayTransform:function(){
-		if (this._nodeDisplay)
-		{
+		if (this._nodeDisplay){
 			this._nodeDisplay.setScaleX(this.global.scaleX);
 			this._nodeDisplay.setScaleY(this.global.scaleY);
-			this._nodeDisplay.setRotationSkewX(this.global.skewX * dragonBones.RADIAN_TO_ANGLE);
-			this._nodeDisplay.setRotationSkewY(this.global.skewY * dragonBones.RADIAN_TO_ANGLE);
+			this._nodeDisplay.setRotationX(this.global.skewX * dragonBones.RADIAN_TO_ANGLE);
+			this._nodeDisplay.setRotationY(this.global.skewY * dragonBones.RADIAN_TO_ANGLE);
 			this._nodeDisplay.setPosition(this.global.x , -this.global.y);
 		}
 	},
