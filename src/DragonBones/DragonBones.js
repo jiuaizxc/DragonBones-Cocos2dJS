@@ -497,7 +497,7 @@ dragonBones.Animation = cc.Class.extend({
 	gotoAndPlay:function(animationName, fadeInTime, duration, playTimes, layer, group, fadeOutMode, pauseFadeOut, pauseFadeIn){
 		if (fadeInTime === undefined) { fadeInTime = -1; }
 		if (duration === undefined) { duration = -1; }
-		if (playTimes === undefined) { loop = -1; }
+		if (playTimes === undefined) { playTimes = -1; }
 		if (layer === undefined) { layer = 0; }
 		if (group === undefined) { group = null; }
 		if (fadeOutMode === undefined) { fadeOutMode = dragonBones.AnimationFadeOutMode.SAME_LAYER_AND_GROUP; }
@@ -1294,7 +1294,7 @@ dragonBones.AnimationState = cc.Class.extend({
 			}
 
 			if (this.autoFadeOut){
-				fadeOut(this.fadeOutTime, true);
+				this.fadeOut(this.fadeOutTime, true);
 			}
 		}else if (loopCompleteFlg){
 			if (this._armature._eventDispatcher.hasEvent(dragonBones.EventType.LOOP_COMPLETE)){
@@ -2818,7 +2818,7 @@ dragonBones.Bone = dragonBones.Object.extend({
 			this._tweenPivot.x = pivot.x * weight;
 			this._tweenPivot.y = pivot.y * weight;
 		}else if (i > 1){
-			var prevLayer = _timelineStateList[i - 1]._animationState.getLayer();
+			var prevLayer = this._timelineStateList[i - 1]._animationState.getLayer();
 			var currentLayer = 0;
 			var weigthLeft = 1;
 			var layerTotalWeight = 0;
@@ -2833,7 +2833,7 @@ dragonBones.Bone = dragonBones.Object.extend({
 
 			while (i--)
 			{
-				timelineState = _timelineStateList[i];
+				timelineState = this._timelineStateList[i];
 				currentLayer = timelineState._animationState.getLayer();
 
 				if (prevLayer != currentLayer){
@@ -5526,7 +5526,7 @@ dragonBones.DBCCSlot = dragonBones.Slot.extend({
 	
 	removeDisplayFromContainer:function(){
 		if (this._nodeDisplay && this._nodeDisplay.getParent()){
-			this._nodeDisplay.removeFromParentAndCleanup(false);
+			this._nodeDisplay.removeFromParent(false);
 		}
 	},
 	
