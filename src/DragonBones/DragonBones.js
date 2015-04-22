@@ -3029,10 +3029,6 @@ dragonBones.Slot = dragonBones.Object.extend({
 			return;
 		}
 
-		if("shoubiR" == this._slotData.name){
-			cc.log("AAAA");
-		}
-
 		var x = this.origin.x + this.offset.x + this._parent._tweenPivot.x;
 		var y = this.origin.y + this.offset.y + this._parent._tweenPivot.y;
 		var parentMatrix = this._parent.globalTransformMatrix;
@@ -5231,7 +5227,6 @@ dragonBones.DBCCArmatureNode = cc.Node.extend({
 
 	ctor:function(){this._super();},
 
-<<<<<<< HEAD
 	dispose:function(){
 		this.unscheduleUpdate();
 		this._armature.dispose();
@@ -5239,8 +5234,6 @@ dragonBones.DBCCArmatureNode = cc.Node.extend({
 		this._clock = null;
 	},
 
-=======
->>>>>>> origin/master
 	getCCSlot:function(slotName){ return this._armature.getCCSlot(slotName); },
 	getCCDisplay:function(){ return this._armature.getCCDisplay(); },
 	getCCEventDispatcher:function(){ return this._armature.getCCEventDispatcher(); },
@@ -5269,11 +5262,7 @@ dragonBones.DBCCArmatureNode = cc.Node.extend({
 	getAnimation:function(){ return this._armature.getAnimation(); },
 
 	update:function(dt){
-<<<<<<< HEAD
 		this._super(dt);
-=======
-		this._super();
->>>>>>> origin/master
 		this.advanceTime(dt);
 	},
 
@@ -5694,9 +5683,6 @@ dragonBones.DBCCSlot = dragonBones.Slot.extend({
 	},
 	
 	updateDisplayTransform:function(){
-		if(this.global.x != 0 || this.global.y != 0){
-			cc.log("AAAA");
-		}
 		if (this._nodeDisplay){
 			this._nodeDisplay.setScaleX(this.global.scaleX);
 			this._nodeDisplay.setScaleY(this.global.scaleY);
